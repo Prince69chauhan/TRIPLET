@@ -1,0 +1,45 @@
+# ── Environment ──────────────────────────────────────────────
+.env
+*.env
+.env.*
+!.env.example
+*.env.local
+
+# ── RSA Keys (never commit these) ────────────────────────────
+backend/keys/
+*.pem
+
+# ── Python ───────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+
+# ── Node / React ─────────────────────────────────────────────
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.pnp
+npm-debug.log*
+
+# ── Docker ───────────────────────────────────────────────────
+*.override.yml
+
+# ── IDE ──────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.DS_Store
+
+# ── Celery ───────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat.pid
+
+# ── Logs ─────────────────────────────────────────────────────
+*.log
+logs/
