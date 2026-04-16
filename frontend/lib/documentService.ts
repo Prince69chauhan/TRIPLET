@@ -1,4 +1,5 @@
 import api from "./api"
+import { getSessionValue } from "./browser-session"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -44,7 +45,7 @@ export const documentService = {
   },
 
   async downloadDocument(docId: string, suggestedName: string) {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    const token = getSessionValue("access_token")
     const response = await fetch(`${BASE_URL}/api/documents/${docId}/download`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     })
@@ -72,7 +73,7 @@ export const documentService = {
   },
 
   async getDocumentBlob(docId: string) {
-    const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null
+    const token = getSessionValue("access_token")
     const response = await fetch(`${BASE_URL}/api/documents/${docId}/download`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     })

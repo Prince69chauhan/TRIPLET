@@ -140,22 +140,25 @@ export function NotificationBell() {
       {/* Bell button */}
       <button
         onClick={() => setOpen((o) => !o)}
-        className="relative p-2 rounded-lg hover:bg-secondary transition-colors"
+        className="relative p-2 rounded-lg hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 transition-all duration-200 active:scale-95"
         aria-label="Notifications"
       >
         <Bell
           className={`h-5 w-5 text-foreground ${unreadCount > 0 ? "animate-pulse" : ""}`}
         />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+          <>
+            <span className="absolute top-0.5 right-0.5 h-4 w-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center leading-none shadow-[0_2px_6px_rgba(239,68,68,0.45)] ring-2 ring-background">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+            <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-red-500/60 animate-ping" aria-hidden />
+          </>
         )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 mt-2 w-80 bg-card/98 backdrop-blur-sm border border-border rounded-xl shadow-[0_20px_48px_rgba(15,23,42,0.18)] z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-sm font-semibold text-foreground">
@@ -179,8 +182,14 @@ export function NotificationBell() {
           {/* List */}
           <div className="max-h-96 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-                No notifications yet
+              <div className="flex flex-col items-center justify-center gap-3 px-4 py-12 text-center">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/70 ring-1 ring-border/60">
+                  <Bell className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-sm font-medium text-foreground">You&apos;re all caught up</p>
+                  <p className="text-xs text-muted-foreground">No new notifications right now.</p>
+                </div>
               </div>
             ) : (
               notifications.map((n) => (

@@ -9,6 +9,7 @@ import { PlusCircle, BarChart3, MessageSquare } from "lucide-react"
 import api from "@/lib/api"
 import { jobService } from "@/lib/jobService"
 import { subscribeToIndicatorChanges, syncJobApplicationIndicators } from "@/lib/activity-indicators"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 
 const PostJobSection = dynamic(
   () => import("@/components/hr/post-job-section").then((module) => module.PostJobSection),
@@ -42,6 +43,7 @@ const navItems = [
 
 function HRDashboardContent() {
   const router = useRouter()
+  const { authorized, checking } = useRoleGuard("employer")
   const searchParams = useSearchParams()
   const allowedSections = useMemo(() => new Set(navItems.map((item) => item.id)), [])
   const sectionFromUrl = searchParams.get("section")
@@ -134,6 +136,10 @@ function HRDashboardContent() {
       params.delete("postJump")
     }
     router.replace(`/hr?${params.toString()}`)
+  }
+
+  if (checking || !authorized) {
+    return <div className="min-h-screen bg-background p-6"><DashboardSectionSkeleton cards={5} rows={6} /></div>
   }
 
   return (

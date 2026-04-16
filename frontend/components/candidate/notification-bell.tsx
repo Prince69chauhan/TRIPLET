@@ -155,22 +155,28 @@ export function CandidateNotificationBell() {
       <button
         onClick={() => setOpen(prev => !prev)}
         className="relative h-10 w-10 rounded-full flex items-center justify-center
-          text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          text-muted-foreground hover:text-foreground hover:bg-secondary
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50
+          transition-all duration-200 active:scale-95"
       >
-        <Bell className="h-5 w-5" />
+        <Bell className={`h-5 w-5 ${unreadCount > 0 ? "animate-pulse" : ""}`} />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full
-            bg-red-500 text-white text-[10px] font-bold flex items-center
-            justify-center ring-2 ring-background animate-pulse">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
+          <>
+            <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full
+              bg-red-500 text-white text-[10px] font-bold flex items-center
+              justify-center ring-2 ring-background shadow-[0_2px_6px_rgba(239,68,68,0.45)]">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+            <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-red-500/60 animate-ping" aria-hidden />
+          </>
         )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-12 w-96 bg-card border border-border
-          rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-12 w-96 bg-card/98 backdrop-blur-sm border border-border
+          rounded-xl shadow-[0_20px_48px_rgba(15,23,42,0.18)] z-50 overflow-hidden
+          animate-in fade-in slide-in-from-top-2 duration-200">
 
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3

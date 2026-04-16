@@ -9,6 +9,7 @@ import axios, {
   InternalAxiosRequestConfig,
 } from "axios"
 import { clearRequestCache } from "@/lib/request-cache"
+import { clearAuthSession, getSessionValue, setSessionValue } from "@/lib/browser-session"
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
@@ -22,7 +23,7 @@ const apiClient: AxiosInstance = axios.create({
 
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== "undefined") {
-    const token = localStorage.getItem("access_token")
+    const token = getSessionValue("access_token")
     if (token) {
       config.headers = config.headers ?? new AxiosHeaders()
       config.headers.set("Authorization", `Bearer ${token}`)
@@ -47,7 +48,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true
 
       try {
-        const refreshToken = localStorage.getItem("refresh_token")
+        const refreshToken = getSessionValue("refresh_token")
         if (!refreshToken) throw new Error("No refresh token")
 
         const refreshResponse = await axios.post<{ access_token: string }>(
@@ -57,7 +58,7 @@ apiClient.interceptors.response.use(
         )
 
         const newToken = refreshResponse.data.access_token
-        localStorage.setItem("access_token", newToken)
+        setSessionValue("access_token", newToken)
 
         originalRequest.headers = originalRequest.headers ?? new AxiosHeaders()
         originalRequest.headers.set("Authorization", `Bearer ${newToken}`)
@@ -65,7 +66,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest)
       } catch (refreshError) {
         clearRequestCache()
-        localStorage.clear()
+        clearAuthSession()
         window.location.href = "/"
         return Promise.reject(refreshError)
       }

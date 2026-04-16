@@ -32,9 +32,10 @@ cryptography==42.0.7               # RSA signing
 minio==7.2.7
 
 # ── AI / ML ──────────────────────────────────────────────────
+--extra-index-url https://download.pytorch.org/whl/cpu
 sentence-transformers==2.7.0   # SBERT (all-MiniLM-L6-v2)
 spacy==3.8.3                   # FIX: upgraded from 3.7.4 — needs typer>=0.3 <0.10 which conflicts with fastapi-cli; 3.8.x lifted that cap
-torch==2.3.0                   # sentence-transformers dependency
+torch==2.3.0+cpu               # CPU-only build (~200 MB vs ~2 GB for CUDA)
 numpy==1.26.4
 typer>=0.9.0                   # FIX: explicit pin satisfies both spacy 3.8 and fastapi-cli
 

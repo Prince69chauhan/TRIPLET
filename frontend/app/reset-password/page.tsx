@@ -79,6 +79,7 @@ function ResetPasswordPageContent() {
                   <div className="relative">
                     <Input
                       type={show ? "text" : "password"}
+                      autoComplete="new-password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
                       placeholder="Min 8 characters"
@@ -99,6 +100,7 @@ function ResetPasswordPageContent() {
                   <Label className="text-foreground">Confirm Password</Label>
                   <Input
                     type="password"
+                    autoComplete="new-password"
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
                     placeholder="Repeat password"

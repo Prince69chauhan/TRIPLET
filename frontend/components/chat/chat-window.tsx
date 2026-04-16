@@ -1,10 +1,11 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Check, CheckCheck, Loader2, Paperclip, Send, X } from "lucide-react"
+import { Check, CheckCheck, Loader2, MessageCircle, Paperclip, Send, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import api from "@/lib/api"
+import { authService } from "@/lib/authService"
 
 interface Message {
   id              : string
@@ -40,29 +41,47 @@ export function ChatWindow({
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput]       = useState("")
   const [sending, setSending]   = useState(false)
+  const [initialLoading, setInitialLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const wsRef     = useRef<WebSocket | null>(null)
   const fileRef   = useRef<HTMLInputElement>(null)
   const currentRoleRef = useRef<"hr" | "candidate">(currentRole ?? "candidate")
+  const currentUserIdRef = useRef<string | null>(null)
 
   useEffect(() => {
-    if (currentRole) {
-      currentRoleRef.current = currentRole
-      return
+    let active = true
+
+    const syncCurrentUser = async () => {
+      try {
+        const me = await authService.getMe()
+        if (!active) return
+        currentUserIdRef.current = me.id
+        currentRoleRef.current = me.role === "employer" ? "hr" : "candidate"
+      } catch {
+        if (!active) return
+        currentUserIdRef.current = null
+        currentRoleRef.current = currentRole ?? (authService.getRole() === "employer" ? "hr" : "candidate")
+      }
     }
 
-    if (typeof window !== "undefined") {
-      const storedRole = localStorage.getItem("user_role")
-      currentRoleRef.current = storedRole === "employer" ? "hr" : "candidate"
+    void syncCurrentUser()
+
+    return () => {
+      active = false
     }
   }, [currentRole])
 
   const loadMessages = useCallback(async () => {
+    const __t0 = performance.now()
     try {
       const data = await api.get<Message[]>(`/api/messages/conversations/${conversationId}`)
+      console.log(`[latency] chat.loadMessages: ${(performance.now() - __t0).toFixed(1)}ms`)
       setMessages(Array.isArray(data) ? data : [])
     } catch {
+      console.log(`[latency] chat.loadMessages (error): ${(performance.now() - __t0).toFixed(1)}ms`)
       /* ignore */
+    } finally {
+      setInitialLoading(false)
     }
   }, [conversationId])
 
@@ -92,7 +111,13 @@ export function ChatWindow({
       try {
         const msg = JSON.parse(e.data)
         if (msg.event === "new_message") {
-          const isMine = msg.sender_role === currentRoleRef.current
+          if (msg.created_at) {
+            const deliveryMs = Date.now() - new Date(msg.created_at).getTime()
+            console.log(`[latency] chat.wsDelivery: ${deliveryMs}ms`)
+          }
+          const isMine = currentUserIdRef.current
+            ? msg.sender_id === currentUserIdRef.current
+            : msg.sender_role === currentRoleRef.current
           setMessages((prev) => {
             const existingIndex = prev.findIndex((m) => m.id === msg.id)
             if (existingIndex >= 0) {
@@ -132,13 +157,16 @@ export function ChatWindow({
     if (!text || sending) return
     setInput("")
     setSending(true)
+    const __t0 = performance.now()
     try {
       const msg = await api.post<Message>(
         `/api/messages/conversations/${conversationId}`,
         { content: text },
       )
+      console.log(`[latency] chat.sendMessage: ${(performance.now() - __t0).toFixed(1)}ms`)
       setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
     } catch {
+      console.log(`[latency] chat.sendMessage (error): ${(performance.now() - __t0).toFixed(1)}ms`)
       setInput((current) => current || text)
     } finally {
       setSending(false)
@@ -148,13 +176,18 @@ export function ChatWindow({
   const handleFileUpload = async (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
+    const __t0 = performance.now()
     try {
       const msg = await api.postForm<Message>(
         `/api/messages/conversations/${conversationId}/attachment`,
         formData,
       )
+      console.log(`[latency] chat.uploadAttachment (${file.size}B): ${(performance.now() - __t0).toFixed(1)}ms`)
       setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
-    } catch { /* ignore */ }
+    } catch {
+      console.log(`[latency] chat.uploadAttachment (error): ${(performance.now() - __t0).toFixed(1)}ms`)
+      /* ignore */
+    }
   }
 
   return (
@@ -176,21 +209,49 @@ export function ChatWindow({
       </div>
 
       {/* Message list */}
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && (
-          <p className="py-10 text-center text-[15px] leading-7 text-muted-foreground">
-            No messages yet — say hello!
-          </p>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-5">
+        {initialLoading && messages.length === 0 && (
+          <div className="space-y-4" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}
+              >
+                <div
+                  className={`h-12 w-[62%] animate-pulse rounded-2xl ${
+                    i % 2 === 0
+                      ? "rounded-bl-sm bg-secondary/70"
+                      : "rounded-br-sm bg-primary/25"
+                  }`}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+        {!initialLoading && messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/70 ring-1 ring-border/60 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
+              <MessageCircle className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[15px] font-medium leading-6 text-foreground">
+                No messages yet
+              </p>
+              <p className="text-[13px] leading-5 text-muted-foreground">
+                Say hello to {otherPartyName.split(" ")[0] || "them"} and start the conversation.
+              </p>
+            </div>
+          </div>
         )}
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.is_mine ? "justify-end" : "justify-start"}`}
+            className={`flex animate-in fade-in slide-in-from-bottom-1 duration-200 ${msg.is_mine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[78%] space-y-2 rounded-2xl px-4 py-3 ${
+              className={`max-w-[78%] space-y-2 rounded-2xl px-4 py-3 transition-shadow duration-200 hover:shadow-[0_14px_28px_rgba(15,23,42,0.16)] ${
                 msg.is_mine
-                  ? "rounded-br-sm bg-primary text-primary-foreground shadow-[0_10px_24px_rgba(15,23,42,0.14)]"
+                  ? "rounded-br-sm bg-gradient-to-br from-primary to-primary/92 text-primary-foreground shadow-[0_10px_24px_rgba(15,23,42,0.14)] ring-1 ring-primary/20"
                   : "rounded-bl-sm border border-border/70 bg-secondary/78 text-foreground shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
               }`}
             >

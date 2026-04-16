@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +9,9 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { FloatingBackButton } from "@/components/ui/floating-back-button"
 import { profileService } from "@/lib/profileService"
+import { clearAuthSession } from "@/lib/browser-session"
 import { useTheme } from "@/hooks/useTheme"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   Moon, Sun, Lock,
   Trash2, AlertCircle, CheckCircle2, Loader2, Shield
@@ -17,6 +19,9 @@ import {
 
 export default function CandidateSettingsPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const expectedRole = pathname.startsWith("/hr") ? "employer" : "candidate"
+  const { authorized, checking } = useRoleGuard(expectedRole)
   const { theme, toggleTheme } = useTheme()
 
   const [passwords, setPasswords] = useState({
@@ -56,15 +61,21 @@ export default function CandidateSettingsPage() {
     try {
       await profileService.deleteAccount()
       // Account is already deleted on backend; clear local session client-side.
-      if (typeof window !== "undefined") {
-        localStorage.clear()
-      }
+      clearAuthSession()
       router.replace("/")
     } catch (e: any) {
       setDeleteError(e?.response?.data?.detail || "Failed to delete account. Please try again.")
     } finally {
       setDeleting(false)
     }
+  }
+
+  if (checking || !authorized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
@@ -121,42 +132,47 @@ export default function CandidateSettingsPage() {
             </CardTitle>
             <CardDescription>Update your account password</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {pwSuccess && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
-                <CheckCircle2 className="h-4 w-4" /> {pwSuccess}
+          <CardContent>
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleChangePassword() }}
+              className="space-y-4"
+            >
+              {pwSuccess && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
+                  <CheckCircle2 className="h-4 w-4" /> {pwSuccess}
+                </div>
+              )}
+              {pwError && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
+                  <AlertCircle className="h-4 w-4" /> {pwError}
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="currentPassword" className="text-foreground text-sm">Current Password</Label>
+                <Input id="currentPassword" name="currentPassword" type="password" autoComplete="current-password" value={passwords.current}
+                  onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))}
+                  className="bg-input border-border text-foreground" placeholder="••••••••" />
               </div>
-            )}
-            {pwError && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
-                <AlertCircle className="h-4 w-4" /> {pwError}
+              <div className="space-y-2">
+                <Label htmlFor="newPassword" className="text-foreground text-sm">New Password</Label>
+                <Input id="newPassword" name="newPassword" type="password" autoComplete="new-password" value={passwords.newPass}
+                  onChange={e => setPasswords(p => ({ ...p, newPass: e.target.value }))}
+                  className="bg-input border-border text-foreground" placeholder="Min 8 characters" />
               </div>
-            )}
-            <div className="space-y-2">
-              <Label className="text-foreground text-sm">Current Password</Label>
-              <Input type="password" value={passwords.current}
-                onChange={e => setPasswords(p => ({ ...p, current: e.target.value }))}
-                className="bg-input border-border text-foreground" placeholder="••••••••" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground text-sm">New Password</Label>
-              <Input type="password" value={passwords.newPass}
-                onChange={e => setPasswords(p => ({ ...p, newPass: e.target.value }))}
-                className="bg-input border-border text-foreground" placeholder="Min 8 characters" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-foreground text-sm">Confirm New Password</Label>
-              <Input type="password" value={passwords.confirm}
-                onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))}
-                className="bg-input border-border text-foreground" placeholder="Repeat new password" />
-            </div>
-            <Button onClick={handleChangePassword} disabled={pwLoading}
-              className="bg-primary text-primary-foreground">
-              {pwLoading
-                ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Updating...</>
-                : <><Shield className="h-4 w-4 mr-2" /> Update Password</>
-              }
-            </Button>
+              <div className="space-y-2">
+                <Label htmlFor="confirmNewPassword" className="text-foreground text-sm">Confirm New Password</Label>
+                <Input id="confirmNewPassword" name="confirmNewPassword" type="password" autoComplete="new-password" value={passwords.confirm}
+                  onChange={e => setPasswords(p => ({ ...p, confirm: e.target.value }))}
+                  className="bg-input border-border text-foreground" placeholder="Repeat new password" />
+              </div>
+              <Button type="submit" disabled={pwLoading}
+                className="bg-primary text-primary-foreground">
+                {pwLoading
+                  ? <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Updating...</>
+                  : <><Shield className="h-4 w-4 mr-2" /> Update Password</>
+                }
+              </Button>
+            </form>
           </CardContent>
         </Card>
 

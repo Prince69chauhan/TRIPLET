@@ -9,6 +9,7 @@ import { Briefcase, FileText, MessageSquare } from "lucide-react"
 import api from "@/lib/api"
 import { jobService } from "@/lib/jobService"
 import { subscribeToIndicatorChanges, syncAvailableJobsIndicator } from "@/lib/activity-indicators"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 
 const JobsSection = dynamic(
   () => import("@/components/candidate/jobs-section").then((module) => module.JobsSection),
@@ -42,6 +43,7 @@ const navItems = [
 
 function CandidateDashboardContent() {
   const router = useRouter()
+  const { authorized, checking } = useRoleGuard("candidate")
   const searchParams = useSearchParams()
   const allowedSections = useMemo(() => new Set(navItems.map((item) => item.id)), [])
   const sectionFromUrl = searchParams.get("section")
@@ -127,6 +129,10 @@ function CandidateDashboardContent() {
     const params = new URLSearchParams(searchParams.toString())
     params.set("section", section)
     router.replace(`/candidate?${params.toString()}`)
+  }
+
+  if (checking || !authorized) {
+    return <div className="min-h-screen bg-background p-6"><DashboardSectionSkeleton cards={3} rows={5} /></div>
   }
 
   return (

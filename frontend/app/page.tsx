@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { authService } from "@/lib/authService"
 import { candidateService } from "@/lib/candidateService"
+import { removeSessionValue } from "@/lib/browser-session"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -107,7 +108,7 @@ export default function LoginPage() {
         )
 
         if (profileDone) authService.markProfileComplete()
-        else if (typeof window !== "undefined") localStorage.removeItem("profile_complete")
+        else removeSessionValue("profile_complete")
 
         router.push(profileDone ? "/candidate" : "/setup")
       } else {
@@ -489,10 +490,11 @@ export default function LoginPage() {
               
               <div className="space-y-2">
                 <Label htmlFor="signupEmail" className="text-foreground">Email</Label>
-                <Input 
+                <Input
                   id="signupEmail"
                   name="email"
-                  type="email" 
+                  type="email"
+                  autoComplete="username"
                   placeholder="name@company.com"
                   className="bg-input border-border text-foreground placeholder:text-muted-foreground"
                   required
@@ -515,10 +517,11 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="signupPassword" className="text-foreground">Password</Label>
                 <div className="relative">
-                  <Input 
+                  <Input
                     id="signupPassword"
                     name="password"
-                    type={showPassword ? "text" : "password"} 
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Create a password"
                     className="bg-input border-border text-foreground placeholder:text-muted-foreground pr-10"
                     required
@@ -537,10 +540,11 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <Label htmlFor="confirmPassword" className="text-foreground">Confirm Password</Label>
                 <div className="relative">
-                  <Input 
+                  <Input
                     id="confirmPassword"
                     name="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"} 
+                    type={showConfirmPassword ? "text" : "password"}
+                    autoComplete="new-password"
                     placeholder="Confirm your password"
                     className="bg-input border-border text-foreground placeholder:text-muted-foreground pr-10"
                     required
@@ -621,10 +625,11 @@ function LoginForm({
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor={`${role}-email`} className="text-foreground">Email</Label>
-            <Input 
+            <Input
               id={`${role}-email`}
               name="email"
-              type="email" 
+              type="email"
+              autoComplete="username"
               placeholder="name@company.com"
               className="bg-input border-border text-foreground placeholder:text-muted-foreground"
               required
@@ -633,10 +638,11 @@ function LoginForm({
           <div className="space-y-2">
             <Label htmlFor={`${role}-password`} className="text-foreground">Password</Label>
             <div className="relative">
-              <Input 
+              <Input
                 id={`${role}-password`}
                 name="password"
-                type={showPassword ? "text" : "password"} 
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
                 placeholder="Enter your password"
                 className="bg-input border-border text-foreground placeholder:text-muted-foreground pr-10"
                 required

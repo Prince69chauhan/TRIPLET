@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { jobService } from "@/lib/jobService"
 import { markAvailableJobSeen, subscribeToIndicatorChanges, syncAvailableJobsIndicator } from "@/lib/activity-indicators"
@@ -25,6 +25,12 @@ import {
   PauseCircle,
   Ban,
   Eye,
+  GraduationCap,
+  ShieldCheck,
+  Sparkles,
+  Tag,
+  ClipboardList,
+  Calendar,
 } from "lucide-react"
 
 type JobLifecycleStatus = "active" | "paused" | "removed" | "completed"
@@ -890,15 +896,24 @@ export function JobsSection() {
       )}
 
       <Dialog open={!!viewJob} onOpenChange={(open) => !open && setViewJob(null)}>
-        <DialogContent className="max-h-[85vh] max-w-4xl overflow-y-auto border-border bg-card">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-y-auto border-border/70 bg-card/98 p-0 backdrop-blur-sm ring-1 ring-border/40 shadow-[0_24px_48px_rgba(15,23,42,0.10)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.45)] sm:w-full">
           {viewJob && (
             <>
-              <DialogHeader>
-                <DialogTitle className="pr-8 text-foreground">{viewJob.title}</DialogTitle>
+              <DialogHeader className="sticky top-0 z-10 border-b border-border/60 bg-card/95 px-5 py-4 backdrop-blur-md sm:px-7 sm:py-5">
+                <DialogTitle className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-8 text-[20px] font-semibold tracking-[-0.01em] text-foreground sm:text-[22px]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
+                    <Briefcase className="h-4 w-4" />
+                  </span>
+                  <span className="break-words">{viewJob.title}</span>
+                </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Full details for the {viewJob.title} job posting.
+                </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-6">
-                <div className="flex flex-wrap gap-2">
+              <div className="relative space-y-6 px-5 pb-6 pt-5 sm:px-7 sm:pb-7">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/[0.04] via-transparent to-transparent" aria-hidden />
+                <div className="flex flex-wrap gap-2 pl-12">
                   {"status" in viewJob && typeof viewJob.status === "string" && activeTab === "applied" && (
                     <Badge className={`text-xs border-0 ${getStatusColor(viewJob.status)}`}>
                       {viewJob.status}
@@ -910,49 +925,60 @@ export function JobsSection() {
                       {lifecycleBadge.label}
                     </Badge>
                   )}
-                  <Badge variant="secondary" className="text-xs bg-secondary text-secondary-foreground">
+                  <Badge variant="secondary" className="flex items-center gap-1 text-xs bg-secondary text-secondary-foreground">
+                    <Calendar className="h-3 w-3" />
                     Posted {formatDate(viewJob.created_at)}
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Department</p>
-                    <p className="text-sm text-foreground break-words">{formatValue(viewJob.department)}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Job Type</p>
-                    <p className="text-sm text-foreground break-words">{formatValue(viewJob.employment_type)}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Location</p>
-                    <p className="text-sm text-foreground break-words">{formatValue(viewJob.location)}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Salary</p>
-                    <p className="text-sm text-foreground break-words">{formatValue(viewJob.salary)}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Vacancies</p>
-                    <p className="text-sm text-foreground">{formatValue(viewJob.vacancies, "1")}</p>
-                  </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+                  {[
+                    { label: "Department", value: formatValue(viewJob.department) },
+                    { label: "Job Type",   value: formatValue(viewJob.employment_type) },
+                    { label: "Location",   value: formatValue(viewJob.location) },
+                    { label: "Salary",     value: formatValue(viewJob.salary) },
+                    { label: "Vacancies",  value: formatValue(viewJob.vacancies, "1") },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-secondary/40 dark:to-secondary/10 p-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                    >
+                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
+                      <p className="mt-2 break-words text-sm font-semibold text-foreground">{item.value}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Job Description</p>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-4">
-                    <p className="text-sm leading-6 text-muted-foreground whitespace-pre-wrap break-words">
+                  <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <ClipboardList className="h-3.5 w-3.5" />
+                    Job Description
+                  </p>
+                  <div className="rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    <p className="whitespace-pre-wrap break-words text-[14px] leading-7 text-foreground/85">
                       {viewJob.description || "No description provided."}
                     </p>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Required Skills</p>
+                  <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <Tag className="h-3.5 w-3.5" />
+                    Required Skills
+                    {viewJob.required_skills?.length ? (
+                      <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary ring-1 ring-primary/20">
+                        {viewJob.required_skills.length}
+                      </span>
+                    ) : null}
+                  </p>
                   <div className="flex flex-wrap gap-2">
                     {viewJob.required_skills?.length ? (
                       viewJob.required_skills.map((skill) => (
-                        <Badge key={skill} variant="secondary" className="text-xs bg-secondary text-secondary-foreground">
+                        <Badge
+                          key={skill}
+                          variant="secondary"
+                          className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary shadow-[0_2px_6px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-[0_6px_14px_rgba(15,23,42,0.08)]"
+                        >
                           {skill}
                         </Badge>
                       ))
@@ -963,22 +989,28 @@ export function JobsSection() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
-                    <p className="text-sm font-medium text-foreground">Eligibility Criteria</p>
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <GraduationCap className="h-4 w-4" />
+                      </span>
+                      Eligibility Criteria
+                    </p>
+                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">10th Minimum</p>
                         <p className="text-sm text-foreground">{formatValue(viewJob.min_tenth_percentage, "No minimum")}%</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">12th Minimum</p>
                         <p className="text-sm text-foreground">{formatValue(viewJob.min_twelfth_percentage, "No minimum")}%</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Minimum CGPA</p>
                         <p className="text-sm text-foreground">{formatValue(viewJob.min_cgpa, "No minimum")}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Passout Range</p>
                         <p className="text-sm text-foreground">
                           {viewJob.min_passout_year || viewJob.max_passout_year
@@ -989,24 +1021,30 @@ export function JobsSection() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
-                    <p className="text-sm font-medium text-foreground">Hiring Rules</p>
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <ShieldCheck className="h-4 w-4" />
+                      </span>
+                      Hiring Rules
+                    </p>
+                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Gap Allowed</p>
                         <p className="text-sm text-foreground">{viewJob.allow_gap ? "Yes" : "No"}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Max Gap Months</p>
                         <p className="text-sm text-foreground">
                           {viewJob.allow_gap ? formatValue(viewJob.max_gap_months, "No limit specified") : "Not applicable"}
                         </p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Backlogs Allowed</p>
                         <p className="text-sm text-foreground">{viewJob.allow_backlogs ? "Yes" : "No"}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Max Active Backlogs</p>
                         <p className="text-sm text-foreground">
                           {viewJob.allow_backlogs ? formatValue(viewJob.max_active_backlogs, "No limit specified") : "Not applicable"}
@@ -1016,22 +1054,28 @@ export function JobsSection() {
                   </div>
                 </div>
 
-                <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
-                  <p className="text-sm font-medium text-foreground">AI Bonus Criteria</p>
+                <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <Sparkles className="h-4 w-4" />
+                    </span>
+                    AI Bonus Criteria
+                  </p>
+                  <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                       <p className="text-xs text-muted-foreground">Skill in Project Bonus</p>
                       <p className="text-sm text-foreground">{formatValue(viewJob.bonus_skill_in_project, "None")}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                       <p className="text-xs text-muted-foreground">Elite Internship Bonus</p>
                       <p className="text-sm text-foreground">{formatValue(viewJob.bonus_elite_internship, "None")}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                       <p className="text-xs text-muted-foreground">Project Level Bonus</p>
                       <p className="text-sm text-foreground">{formatValue(viewJob.bonus_project_level, "None")}</p>
                     </div>
-                    <div className="rounded-lg border border-border bg-background/40 p-3">
+                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                       <p className="text-xs text-muted-foreground">Internship Duration Bonus</p>
                       <p className="text-sm text-foreground">{formatValue(viewJob.bonus_internship_duration, "None")}</p>
                     </div>
@@ -1039,22 +1083,28 @@ export function JobsSection() {
                 </div>
 
                 {activeTab === "applied" && "applied_at" in viewJob && (
-                  <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-4">
-                    <p className="text-sm font-medium text-foreground">Your Application</p>
+                  <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <ClipboardList className="h-4 w-4" />
+                      </span>
+                      Your Application
+                    </p>
+                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Applied On</p>
                         <p className="text-sm text-foreground">{formatDate(viewJob.applied_at)}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Application Status</p>
                         <p className="text-sm text-foreground">{formatValue(viewJob.status)}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">AI Score</p>
                         <p className="text-sm text-foreground">{formatValue(viewJob.final_score_d, "Pending")}</p>
                       </div>
-                      <div className="rounded-lg border border-border bg-background/40 p-3">
+                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
                         <p className="text-xs text-muted-foreground">Hard Filter</p>
                         <p className="text-sm text-foreground">
                           {viewJob.passed_hard_filter === null

@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper"
 import { FloatingBackButton } from "@/components/ui/floating-back-button"
 import { profileService } from "@/lib/profileService"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   Building, Camera, Save,
   AlertCircle, CheckCircle2, Loader2, Globe, Briefcase
@@ -18,6 +19,7 @@ import {
 
 export default function HRProfilePage() {
   const router      = useRouter()
+  const { authorized, checking } = useRoleGuard("employer")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarObjectUrlRef = useRef<string | null>(null)
 
@@ -57,6 +59,9 @@ export default function HRProfilePage() {
   }
 
   useEffect(() => {
+    if (!authorized) {
+      return
+    }
     profileService.getMe().then(async (data) => {
       setEmail(data.email)
       setJoinedAt(data.created_at ? new Date(data.created_at).toLocaleDateString() : "")
@@ -82,7 +87,7 @@ export default function HRProfilePage() {
         URL.revokeObjectURL(avatarObjectUrlRef.current)
       }
     }
-  }, [])
+  }, [authorized])
 
   const handleSave = async () => {
     setSaving(true); setError(""); setSuccess("")
@@ -128,7 +133,7 @@ export default function HRProfilePage() {
     ? form.company_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "HR"
 
-  if (loading) return (
+  if (checking || !authorized || loading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
       <Loader2 className="h-6 w-6 animate-spin text-primary" />
     </div>

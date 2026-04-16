@@ -1,9 +1,28 @@
-.git
-.gitignore
-.next
-node_modules
-npm-debug.log
-Dockerfile
-.env.local
-.env.local.*
+# Dependencies (reinstalled inside Docker)
+node_modules/
+
+# Next.js build output (rebuilt inside Docker)
+.next/
 tsconfig.tsbuildinfo
+
+# Local env / secrets
+.env
+.env.local
+.env.*.local
+
+# Dev / OS noise
+.git/
+.gitignore
+npm-debug.log
+*.log
+*.md
+.DS_Store
+Thumbs.db
+
+# Docker files themselves
+Dockerfile
+.dockerignore
+
+# IDE
+.vscode/
+.idea/

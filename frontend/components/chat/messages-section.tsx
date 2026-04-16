@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Briefcase, ChevronDown, ChevronRight, Loader2, MessageSquare, Search } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +50,7 @@ function toTimeValue(iso: string | null): number {
 }
 
 export function MessagesSection() {
+  const pathname = usePathname()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading]             = useState(true)
   const [search, setSearch]               = useState("")
@@ -56,6 +58,7 @@ export function MessagesSection() {
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null
+  const currentRole = pathname.startsWith("/hr") ? "hr" : "candidate"
 
   const load = useCallback(async () => {
     try {
@@ -306,6 +309,7 @@ export function MessagesSection() {
                 conversationId={activeConv.id}
                 jobTitle={activeConv.job_title}
                 otherPartyName={activeConv.other_party}
+                currentRole={currentRole}
                 onClose={() => setActiveId(null)}
               />
             </Card>

@@ -1,0 +1,34 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Keys / secrets (mounted at runtime)
+keys/
+
+# Alembic auto-generated versions are committed, but local state files are not
+celerybeat-schedule
+celerybeat.pid
+
+# Dev / OS noise
+.git/
+.gitignore
+*.log
+*.md
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

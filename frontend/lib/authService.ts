@@ -1,5 +1,6 @@
 import api from "./api"
 import { clearRequestCache } from "./request-cache"
+import { clearAuthSession, getSessionValue, removeSessionValue, setSessionValue } from "./browser-session"
 
 type AuthTokens = {
   access_token: string
@@ -26,9 +27,9 @@ type MeResponse = {
 function persistSession(data: AuthTokens) {
   if (typeof window === "undefined") return
   clearRequestCache()
-  localStorage.setItem("access_token", data.access_token)
-  localStorage.setItem("refresh_token", data.refresh_token)
-  localStorage.setItem("user_role", data.role)
+  setSessionValue("access_token", data.access_token)
+  setSessionValue("refresh_token", data.refresh_token)
+  setSessionValue("user_role", data.role)
 }
 
 export const authService = {
@@ -39,7 +40,7 @@ export const authService = {
   }) {
     if (typeof window !== "undefined") {
       clearRequestCache()
-      localStorage.removeItem("profile_complete")
+      removeSessionValue("profile_complete")
     }
     return api.post("/api/auth/register/candidate", data)
   },
@@ -53,7 +54,7 @@ export const authService = {
   }) {
     if (typeof window !== "undefined") {
       clearRequestCache()
-      localStorage.removeItem("profile_complete")
+      removeSessionValue("profile_complete")
     }
     return api.post("/api/auth/register/employer", data)
   },
@@ -89,30 +90,28 @@ export const authService = {
       await api.post("/api/auth/logout")
     } finally {
       clearRequestCache()
-      if (typeof window !== "undefined") {
-        localStorage.clear()
-      }
+      clearAuthSession()
     }
   },
 
   isLoggedIn(): boolean {
     if (typeof window === "undefined") return false
-    return !!localStorage.getItem("access_token")
+    return !!getSessionValue("access_token")
   },
 
   getRole(): string | null {
     if (typeof window === "undefined") return null
-    return localStorage.getItem("user_role")
+    return getSessionValue("user_role")
   },
 
   isProfileComplete(): boolean {
     if (typeof window === "undefined") return false
-    return localStorage.getItem("profile_complete") === "true"
+    return getSessionValue("profile_complete") === "true"
   },
 
   markProfileComplete() {
     if (typeof window !== "undefined") {
-      localStorage.setItem("profile_complete", "true")
+      setSessionValue("profile_complete", "true")
     }
   },
 }

@@ -1,3 +1,21 @@
+# ── Shared backend build + runtime config ────────────────────
+x-backend: &backend
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  image: triplet_backend:latest   # built once, reused by all backend services
+  env_file: .env
+  volumes:
+    - ./backend:/app
+  restart: unless-stopped
+
+x-backend-deps: &backend-deps
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 services:
 
   # ── PostgreSQL (pgvector image) ───────────────────────────
@@ -73,14 +91,8 @@ services:
 
   # ── FastAPI backend ───────────────────────────────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    <<: [*backend, *backend-deps]
     container_name: triplet_backend
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./backend:/app           # live reload in dev
     ports:
       - "8000:8000"
     depends_on:
@@ -94,36 +106,14 @@ services:
 
   # ── Celery worker (AI scoring + integrity checks) ─────────
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    <<: [*backend, *backend-deps]
     container_name: triplet_celery_worker
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./backend:/app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=4 -Q scoring,integrity,notifications
 
   # ── Celery beat (periodic tasks — integrity verifier) ─────
   celery_beat:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    <<: [*backend, *backend-deps]
     container_name: triplet_celery_beat
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./backend:/app
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
     command: celery -A app.workers.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
 
   # ── React frontend ────────────────────────────────────────
@@ -151,14 +141,8 @@ services:
 
   # ── Flower (Celery task monitor — dev only) ───────────────
   flower:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    <<: *backend
     container_name: triplet_flower
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./backend:/app
     ports:
       - "5555:5555"
     depends_on:

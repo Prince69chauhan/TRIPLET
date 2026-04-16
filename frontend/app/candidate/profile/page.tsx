@@ -13,7 +13,9 @@ import { TooltipWrapper } from "@/components/ui/tooltip-wrapper"
 import { FloatingBackButton } from "@/components/ui/floating-back-button"
 import { profileService } from "@/lib/profileService"
 import { candidateService } from "@/lib/candidateService"
+import { removeSessionValue } from "@/lib/browser-session"
 import { cgpaToPercentage } from "@/lib/utils"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   User, Camera, Save, Upload,
   RefreshCw, AlertCircle, CheckCircle2,
@@ -23,6 +25,7 @@ import {
 
 export default function CandidateProfilePage() {
   const router = useRouter()
+  const { authorized, checking } = useRoleGuard("candidate")
   const fileInputRef    = useRef<HTMLInputElement>(null)
   const resumeInputRef  = useRef<HTMLInputElement>(null)
   const avatarObjectUrlRef = useRef<string | null>(null)
@@ -109,6 +112,9 @@ export default function CandidateProfilePage() {
   }
 
   useEffect(() => {
+    if (!authorized) {
+      return
+    }
     profileService.getMe().then(async (data) => {
       setEmail(data.email)
       setJoinedAt(data.created_at ? new Date(data.created_at).toLocaleDateString() : "")
@@ -144,7 +150,7 @@ export default function CandidateProfilePage() {
         URL.revokeObjectURL(avatarObjectUrlRef.current)
       }
     }
-  }, [])
+  }, [authorized])
 
   const handleSave = async () => {
     setSaving(true); setError(""); setSuccess("")
@@ -258,7 +264,7 @@ export default function CandidateProfilePage() {
   }
 
   const handleRedoSetup = () => {
-    localStorage.removeItem("profile_complete")
+    removeSessionValue("profile_complete")
     router.push("/setup")
   }
 
@@ -266,7 +272,7 @@ export default function CandidateProfilePage() {
     ? form.full_name.split(" ").map(n => n[0]).join("").toUpperCase()
     : "?"
 
-  if (loading) {
+  if (checking || !authorized || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />

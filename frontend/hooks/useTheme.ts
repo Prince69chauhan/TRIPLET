@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react"
 
+const THEME_KEY = "triplet_theme"
+
 export function useTheme() {
   const [theme, setTheme] = useState<"dark" | "light">("dark")
 
   useEffect(() => {
-    const stored = localStorage.getItem("triplet_theme") as "dark" | "light" | null
-    const initial = stored ?? "dark"
-    setTheme(initial)
-    applyTheme(initial)
+    const stored = localStorage.getItem(THEME_KEY) as "dark" | "light" | null
+    const resolved = stored === "light" ? "light" : "dark"
+    setTheme(resolved)
+    applyTheme(resolved)
   }, [])
 
   function applyTheme(t: "dark" | "light") {
@@ -26,7 +28,7 @@ export function useTheme() {
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark"
     setTheme(next)
-    localStorage.setItem("triplet_theme", next)
+    localStorage.setItem(THEME_KEY, next)
     applyTheme(next)
   }
 

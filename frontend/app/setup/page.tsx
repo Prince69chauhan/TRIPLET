@@ -14,6 +14,7 @@ import { FloatingBackButton } from "@/components/ui/floating-back-button"
 import { candidateService } from "@/lib/candidateService"
 import { authService } from "@/lib/authService"
 import { cgpaToPercentage, isPercentageValid, formatFileSize, cn } from "@/lib/utils"
+import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   User, Phone, GraduationCap, AlertCircle,
   Upload, CheckCircle2, X, Plus, ArrowRight,
@@ -51,6 +52,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 
 export default function SetupPage() {
   const router = useRouter()
+  const { authorized, checking } = useRoleGuard("candidate")
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -282,6 +284,14 @@ export default function SetupPage() {
   }
 
   const progress = ((step + 1) / STEPS.length) * 100
+
+  if (checking || !authorized) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
