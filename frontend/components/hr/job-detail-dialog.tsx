@@ -1,5 +1,6 @@
 "use client"
 
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -19,6 +20,8 @@ import {
   Tag,
   Users,
 } from "lucide-react"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { getJobVisual } from "@/lib/job-visuals"
 
 type JobStatus = "active" | "paused" | "removed" | "completed"
 
@@ -113,11 +116,14 @@ export function JobDetailDialog({
   job: Job | null
   onClose: () => void
 }) {
+  const isMobile = useIsMobile()
   if (!job) return null
+  const jobVisual = getJobVisual(job)
+  const JobTypeIcon = jobVisual.icon
 
   const stats = [
     { icon: Calendar,   label: "Department", value: detailValue(job.department) },
-    { icon: Briefcase,  label: "Job Type",   value: detailValue(job.employment_type) },
+    { icon: JobTypeIcon, label: "Job Type",  value: detailValue(job.employment_type) },
     { icon: MapPin,     label: "Location",   value: detailValue(job.location) },
     { icon: DollarSign, label: "Salary",     value: detailValue(job.salary) },
     { icon: Users,      label: "Vacancies",  value: detailValue(job.vacancies, "1") },
@@ -130,8 +136,8 @@ export function JobDetailDialog({
         {/* ── Header ─────────────────────────────────────────── */}
         <DialogHeader className="sticky top-0 z-10 border-b border-border/50 bg-card/97 px-5 py-3.5 backdrop-blur-xl sm:px-7 sm:py-4">
           <div className="flex items-start gap-3 pr-8">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <Briefcase className="h-4.5 w-4.5" />
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${jobVisual.surfaceClassName}`}>
+              <JobTypeIcon className="h-4.5 w-4.5" />
             </span>
             <div className="min-w-0 flex-1">
               <DialogTitle className="break-normal whitespace-normal text-[17px] font-bold leading-snug tracking-[-0.02em] text-foreground sm:text-[18px]">
@@ -159,9 +165,92 @@ export function JobDetailDialog({
             ))}
           </div>
 
+          {isMobile && (
+            <Accordion type="multiple" defaultValue={["description", "skills"]} className="rounded-xl border border-border/50 bg-secondary/10">
+              {job.description && (
+                <AccordionItem value="description" className="border-border/50 px-4">
+                  <AccordionTrigger className="py-3 text-sm font-semibold text-foreground hover:no-underline">
+                    Job Description
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <p className="break-normal whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/80">
+                      {job.description}
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              {job.required_skills?.length > 0 && (
+                <AccordionItem value="skills" className="border-border/50 px-4">
+                  <AccordionTrigger className="py-3 text-sm font-semibold text-foreground hover:no-underline">
+                    Required Skills
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="flex flex-wrap gap-1.5">
+                      {job.required_skills.map((skill) => (
+                        <Badge
+                          key={skill}
+                          variant="secondary"
+                          className="rounded-full border border-primary/20 bg-primary/8 px-2.5 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/12"
+                        >
+                          {skill}
+                        </Badge>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              )}
+              <AccordionItem value="eligibility" className="border-border/50 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold text-foreground hover:no-underline">
+                  Eligibility Criteria
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <InfoCell label="10th Minimum" value={job.min_tenth_percentage != null ? `${job.min_tenth_percentage}%` : "No minimum"} />
+                    <InfoCell label="12th Minimum" value={job.min_twelfth_percentage != null ? `${job.min_twelfth_percentage}%` : "No minimum"} />
+                    <InfoCell label="Min CGPA" value={job.min_cgpa != null ? `${job.min_cgpa} / 10` : "No minimum"} />
+                    <InfoCell
+                      label="Passout Range"
+                      value={job.min_passout_year || job.max_passout_year ? `${job.min_passout_year ?? "Any"} – ${job.max_passout_year ?? "Any"}` : "Not specified"}
+                    />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="rules" className="border-border/50 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold text-foreground hover:no-underline">
+                  Hiring Rules
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    <InfoCell label="Gap Allowed" value={<span className={job.allow_gap ? "text-emerald-500" : "text-rose-400"}>{job.allow_gap ? "Yes" : "No"}</span>} />
+                    <InfoCell label="Max Gap" value={job.allow_gap ? job.max_gap_months != null ? `${job.max_gap_months} mo` : "No limit" : "N/A"} />
+                    <InfoCell label="Backlogs Allowed" value={<span className={job.allow_backlogs ? "text-emerald-500" : "text-rose-400"}>{job.allow_backlogs ? "Yes" : "No"}</span>} />
+                    <InfoCell label="Max Backlogs" value={job.allow_backlogs ? job.max_active_backlogs != null ? String(job.max_active_backlogs) : "No limit" : "N/A"} />
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+              <AccordionItem value="bonus" className="border-b-0 px-4">
+                <AccordionTrigger className="py-3 text-sm font-semibold text-foreground hover:no-underline">
+                  AI Bonus Criteria
+                </AccordionTrigger>
+                <AccordionContent className="pb-4">
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { label: "Skill in Project", value: detailValue(job.bonus_skill_in_project, "None") },
+                      { label: "Elite Internship", value: detailValue(job.bonus_elite_internship, "None") },
+                      { label: "Project Level", value: detailValue(job.bonus_project_level, "None") },
+                      { label: "Internship Duration", value: detailValue(job.bonus_internship_duration, "None") },
+                    ].map((item) => (
+                      <InfoCell key={item.label} label={item.label} value={item.value} />
+                    ))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          )}
+
           {/* ── Description ─────────────────────────────────── */}
           {job.description && (
-            <div className="space-y-3">
+            <div className="hidden space-y-3 sm:block">
               <SectionHeading icon={Briefcase} title="Job Description" />
               <p className="break-normal whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/80 px-1">
                 {job.description}
@@ -171,7 +260,7 @@ export function JobDetailDialog({
 
           {/* ── Required Skills ─────────────────────────────── */}
           {job.required_skills?.length > 0 && (
-            <div className="space-y-2.5">
+            <div className="hidden space-y-2.5 sm:block">
               <div className="flex items-center gap-2 pb-2.5 border-b border-border/40">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-primary/10 text-primary">
                   <Tag className="h-3.5 w-3.5" />
@@ -196,7 +285,7 @@ export function JobDetailDialog({
           )}
 
           {/* ── Eligibility + Hiring Rules ───────────────────── */}
-          <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
+          <div className="hidden grid-cols-1 gap-3.5 xl:grid sm:grid-cols-2">
             <div className="space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10">
               <SectionHeading icon={GraduationCap} title="Eligibility Criteria" />
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -263,7 +352,7 @@ export function JobDetailDialog({
           </div>
 
           {/* ── AI Bonus Criteria ────────────────────────────── */}
-          <div className="space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10">
+          <div className="hidden space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10 sm:block">
             <SectionHeading icon={Sparkles} title="AI Bonus Criteria" />
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
               {[

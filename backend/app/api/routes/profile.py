@@ -15,9 +15,9 @@ from datetime import datetime, timedelta
 from typing import Optional
 from urllib.parse import urlsplit
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -29,6 +29,7 @@ from app.api.dependencies.auth import (
     require_candidate,
     require_employer,
 )
+from app.core.rate_limit import limiter
 from app.core.database import AsyncSessionLocal
 from app.models.models import (
     Application,
@@ -47,6 +48,16 @@ from app.models.models import (
     User,
 )
 from app.services.storage.minio import get_minio_client
+from app.schemas.auth import validate_password_strength
+from app.services.notification.email import send_email_sync
+from app.services.notification.email_templates import password_change_verification
+from app.services.notification.otp import (
+    CHANGE_PASSWORD_OTP_EXPIRY_SECONDS,
+    generate_otp,
+    get_change_password_otp_ttl,
+    store_change_password_otp,
+    verify_change_password_otp,
+)
 from app.utils.notification_preferences import (
     DEFAULT_NOTIFICATION_PREFERENCES,
     normalize_notification_preferences,
@@ -85,6 +96,15 @@ class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
 
+    @field_validator("new_password")
+    @classmethod
+    def _password(cls, v: str) -> str:
+        return validate_password_strength(v)
+
+
+class ConfirmChangePasswordRequest(ChangePasswordRequest):
+    otp: str
+
 
 class NotificationPreferencesUpdate(BaseModel):
     in_app_enabled: Optional[bool] = None
@@ -104,6 +124,28 @@ def _extract_avatar_object_key(url: str) -> str:
     if not object_key:
         raise ValueError("Avatar object key missing")
     return object_key
+
+
+async def _get_profile_display_name(db: AsyncSession, user: User) -> str:
+    display_name = user.email.split("@")[0]
+
+    if user.role.value == "candidate":
+        result = await db.execute(
+            select(CandidateProfile).where(CandidateProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile and profile.full_name:
+            return profile.full_name
+
+    if user.role.value == "employer":
+        result = await db.execute(
+            select(EmployerProfile).where(EmployerProfile.user_id == user.id)
+        )
+        profile = result.scalar_one_or_none()
+        if profile and profile.company_name:
+            return profile.company_name
+
+    return display_name
 
 
 @router.get("/me")
@@ -299,12 +341,14 @@ async def get_profile_picture(
 
 
 @router.post("/change-password")
+@limiter.limit("3/15minute")
 async def change_password(
+    request: Request,
+    response: Response,
     payload: ChangePasswordRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_raw_db),
 ):
-    # Re-load within this DB session to avoid detached-object issues.
     result = await db.execute(select(User).where(User.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
@@ -312,12 +356,55 @@ async def change_password(
 
     if not verify_password(payload.current_password, user.hashed_password):
         raise HTTPException(status_code=400, detail="Current password is incorrect.")
-    if len(payload.new_password) < 8:
-        raise HTTPException(status_code=400, detail="New password must be at least 8 characters.")
     if payload.current_password == payload.new_password:
         raise HTTPException(status_code=400, detail="New password must be different from current password.")
 
+    ttl = get_change_password_otp_ttl(user.email)
+    resend_threshold = max(CHANGE_PASSWORD_OTP_EXPIRY_SECONDS - 60, 0)
+    if ttl > resend_threshold:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Please wait {ttl - resend_threshold} seconds before requesting a new verification code.",
+        )
+
+    otp = generate_otp()
+    store_change_password_otp(user.email, otp)
+
+    display_name = await _get_profile_display_name(db, user)
+    subject, body = password_change_verification(display_name, otp)
+    sent = send_email_sync(user.email, subject, body)
+    if not sent:
+        raise HTTPException(status_code=500, detail="Failed to send verification code. Please try again.")
+
+    return {
+        "message": "Verification code sent to your email.",
+        "expires_in": CHANGE_PASSWORD_OTP_EXPIRY_SECONDS,
+    }
+
+
+@router.post("/change-password/confirm")
+@limiter.limit("10/hour")
+async def confirm_change_password(
+    request: Request,
+    response: Response,
+    payload: ConfirmChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_raw_db),
+):
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not verify_password(payload.current_password, user.hashed_password):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different from current password.")
+    if not verify_change_password_otp(user.email, payload.otp):
+        raise HTTPException(status_code=401, detail="Invalid or expired verification code.")
+
     user.hashed_password = hash_password(payload.new_password)
+    user.updated_at = datetime.utcnow()
     await db.commit()
 
     return {"message": "Password changed successfully."}

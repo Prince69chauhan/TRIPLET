@@ -178,6 +178,11 @@ async def list_conversations(
                  WHERE m.conversation_id = c.id
                  ORDER BY m.created_at DESC LIMIT 1) as last_message_at,
                 (SELECT COUNT(*) FROM messages m
+                 WHERE m.conversation_id = c.id) as message_count,
+                (SELECT COUNT(*) FROM messages m
+                 WHERE m.conversation_id = c.id
+                 AND m.attachment_url IS NOT NULL) as attachment_count,
+                (SELECT COUNT(*) FROM messages m
                  WHERE m.conversation_id = c.id
                  AND m.is_read = FALSE
                  AND m.sender_role = 'candidate') as unread_count
@@ -202,6 +207,11 @@ async def list_conversations(
                  WHERE m.conversation_id = c.id
                  ORDER BY m.created_at DESC LIMIT 1) as last_message_at,
                 (SELECT COUNT(*) FROM messages m
+                 WHERE m.conversation_id = c.id) as message_count,
+                (SELECT COUNT(*) FROM messages m
+                 WHERE m.conversation_id = c.id
+                 AND m.attachment_url IS NOT NULL) as attachment_count,
+                (SELECT COUNT(*) FROM messages m
                  WHERE m.conversation_id = c.id
                  AND m.is_read = FALSE
                  AND m.sender_role = 'hr') as unread_count
@@ -222,7 +232,9 @@ async def list_conversations(
             "other_party"    : r[3],
             "last_message"   : r[4],
             "last_message_at": r[5].isoformat() if r[5] else None,
-            "unread_count"   : int(r[6] or 0),
+            "message_count"  : int(r[6] or 0),
+            "attachment_count": int(r[7] or 0),
+            "unread_count"   : int(r[8] or 0),
         }
         for r in result
     ]

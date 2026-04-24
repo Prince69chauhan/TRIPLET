@@ -1,20 +1,21 @@
 "use client"
 
-import { memo, useCallback, useEffect, useMemo, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   RadarChart, Radar, PolarGrid,
   PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, ReferenceLine
+  ResponsiveContainer
 } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { jobService } from "@/lib/jobService"
 import { AnalyticsSectionSkeleton } from "@/components/dashboard/section-skeleton"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   TrendingUp, Users, Briefcase, Trophy,
-  BarChart3, PieChart as PieIcon, Activity,
+  BarChart3, Activity,
   CheckCircle2
 } from "lucide-react"
 
@@ -121,11 +122,36 @@ const KpiCard = memo(function KpiCard({
   )
 })
 
+const MobileAnalyticsItem = memo(function MobileAnalyticsItem({
+  value,
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  value: string
+  title: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  return (
+    <Accordion type="single" collapsible defaultValue={defaultOpen ? value : undefined} className="rounded-xl border border-border bg-card">
+      <AccordionItem value={value} className="border-b-0">
+        <AccordionTrigger className="px-4 py-3 text-sm font-semibold text-foreground hover:no-underline">
+          {title}
+        </AccordionTrigger>
+        <AccordionContent className="px-4 pb-4">
+          {children}
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  )
+})
+
 // ── Main component ────────────────────────────────────────────
 export function AnalyticsDashboard() {
   const [data, setData]       = useState<AnalyticsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedScoreJobId, setSelectedScoreJobId] = useState<string>("")
+  const isMobile = useIsMobile()
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -152,20 +178,6 @@ export function AnalyticsDashboard() {
   const jobStats = data?.jobStats ?? []
   const dailyApps = data?.dailyApps ?? []
   const counts = data?.counts ?? { posted: 0, active: 0, inactive: 0, past: 0, total: 0 }
-  const selectableScoreJobs = useMemo(() => jobStats.filter(job =>
-    job.total_applications > 0 || job.avg_score > 0 || job.top_score > 0 || job.low_score > 0
-  ), [jobStats])
-  const selectedScoreJob = selectableScoreJobs.find(job => job.job_id === selectedScoreJobId) ?? selectableScoreJobs[0] ?? null
-
-  useEffect(() => {
-    if (selectableScoreJobs.length === 0) {
-      if (selectedScoreJobId) setSelectedScoreJobId("")
-      return
-    }
-    if (!selectedScoreJobId || !selectableScoreJobs.some(job => job.job_id === selectedScoreJobId)) {
-      setSelectedScoreJobId(selectableScoreJobs[0].job_id)
-    }
-  }, [selectableScoreJobs, selectedScoreJobId])
 
   if (loading) return <AnalyticsSectionSkeleton />
 
@@ -185,13 +197,6 @@ export function AnalyticsDashboard() {
     { range: "51–75",  count: jobStats.filter(j => j.avg_score > 50 && j.avg_score <= 75).length, fill: COLORS.blue   },
     { range: "76–100", count: jobStats.filter(j => j.avg_score > 75).length,                fill: COLORS.primary},
   ]
-
-  // Job status pie
-  const statusPie = [
-    { name: "Active",   value: counts.active,   fill: COLORS.primary },
-    { name: "Paused",   value: counts.inactive, fill: COLORS.yellow  },
-    { name: "Past",     value: counts.past,     fill: COLORS.gray    },
-  ].filter(d => d.value > 0)
 
   // Filter pass/fail pie
   const filterPie = [
@@ -263,15 +268,9 @@ export function AnalyticsDashboard() {
 
       {/* ── Daily Applications Area Chart ── */}
       {areaData.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
-              Application Activity (Last 14 Days)
-            </CardTitle>
-            <CardDescription>Daily application submissions across all job postings</CardDescription>
-          </CardHeader>
-          <CardContent>
+        isMobile ? (
+          <MobileAnalyticsItem value="activity" title="Application Activity (Last 14 Days)" defaultOpen>
+            <p className="mb-3 text-xs text-muted-foreground">Daily application submissions across all job postings</p>
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={areaData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
@@ -292,21 +291,47 @@ export function AnalyticsDashboard() {
                 />
               </AreaChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          </MobileAnalyticsItem>
+        ) : (
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="text-foreground text-sm flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Application Activity (Last 14 Days)
+              </CardTitle>
+              <CardDescription>Daily application submissions across all job postings</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={areaData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%"  stopColor={COLORS.primary} stopOpacity={0.3} />
+                      <stop offset="95%" stopColor={COLORS.primary} stopOpacity={0}   />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone" dataKey="Applications"
+                    stroke={COLORS.primary} strokeWidth={2}
+                    fill="url(#appGrad)" dot={{ fill: COLORS.primary, r: 3 }}
+                    activeDot={{ r: 5, fill: COLORS.primary }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        )
       )}
 
       {/* ── Per-Job Stats Bar Chart ── */}
       {jobBarData.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground text-sm flex items-center gap-2">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Applications & Scores Per Job
-            </CardTitle>
-            <CardDescription>Total applicants and average AI score for each job posting</CardDescription>
-          </CardHeader>
-          <CardContent>
+        isMobile ? (
+          <MobileAnalyticsItem value="per-job" title="Applications and Scores Per Job">
+            <p className="mb-3 text-xs text-muted-foreground">Total applicants and average AI score for each job posting</p>
             <ResponsiveContainer width="100%" height={240}>
               <BarChart data={jobBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
@@ -319,43 +344,87 @@ export function AnalyticsDashboard() {
                 <Bar dataKey="Passed"       fill={COLORS.cyan}    radius={[4,4,0,0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Pie Charts Row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {/* Job Status Pie */}
-        {statusPie.length > 0 && (
+          </MobileAnalyticsItem>
+        ) : (
           <Card className="bg-card border-border">
-            <CardHeader className="pb-2">
+            <CardHeader>
               <CardTitle className="text-foreground text-sm flex items-center gap-2">
-                <PieIcon className="h-4 w-4 text-primary" /> Job Status
+                <BarChart3 className="h-4 w-4 text-primary" />
+                Applications & Scores Per Job
               </CardTitle>
+              <CardDescription>Total applicants and average AI score for each job posting</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie
-                    data={statusPie} cx="50%" cy="50%"
-                    innerRadius={45} outerRadius={70}
-                    paddingAngle={3} dataKey="value"
-                  >
-                    {statusPie.map((entry, i) => (
-                      <Cell key={`${entry.name}-${entry.value}`} fill={entry.fill} />
-                    ))}
-                  </Pie>
+              <ResponsiveContainer width="100%" height={240}>
+                <BarChart data={jobBarData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend
-                    iconType="circle" iconSize={8}
-                    wrapperStyle={{ fontSize: 11, color: "#9ca3af" }}
-                  />
-                </PieChart>
+                  <Legend wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
+                  <Bar dataKey="Applications" fill={COLORS.blue}    radius={[4,4,0,0]} maxBarSize={40} />
+                  <Bar dataKey="Avg Score"    fill={COLORS.primary} radius={[4,4,0,0]} maxBarSize={40} />
+                  <Bar dataKey="Passed"       fill={COLORS.cyan}    radius={[4,4,0,0]} maxBarSize={40} />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
-        )}
+        )
+      )}
+
+      {/* ── Pie Charts Row ── */}
+      {isMobile && (
+        <MobileAnalyticsItem value="breakdowns" title="Breakdown Charts">
+          <div className="grid grid-cols-1 gap-4">
+            {filterPie.length > 0 && (
+              <Card className="bg-card border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-foreground text-sm flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-primary" /> Hard Filter Results
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart>
+                      <Pie data={filterPie} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                        {filterPie.map((entry) => (
+                          <Cell key={`${entry.name}-${entry.value}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-foreground text-sm flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" /> Score Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={180}>
+                  <BarChart data={scoreDist} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                    <XAxis dataKey="range" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="count" radius={[4,4,0,0]} maxBarSize={40}>
+                      {scoreDist.map((entry) => (
+                        <Cell key={`${entry.range}-${entry.count}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </MobileAnalyticsItem>
+      )}
+
+      <div className="hidden grid-cols-1 gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-3">
 
         {/* Filter Pass/Fail Pie */}
         {filterPie.length > 0 && (
@@ -413,78 +482,26 @@ export function AnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* ── Per-Job Score Range Chart ── */}
-      {selectableScoreJobs.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <CardTitle className="text-foreground text-sm flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Score Range Per Job (Min / Avg / Max)
-                </CardTitle>
-                <CardDescription>Switch jobs to inspect scoring spread candidate-by-candidate</CardDescription>
-              </div>
-              <Select value={selectedScoreJob?.job_id ?? ""} onValueChange={setSelectedScoreJobId}>
-                <SelectTrigger className="w-full bg-input border-border text-foreground sm:w-[240px]">
-                  <SelectValue placeholder="Select a job" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {selectableScoreJobs.map(job => (
-                    <SelectItem key={job.job_id} value={job.job_id}>
-                      {job.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {selectedScoreJob ? (
-              <>
-                <ResponsiveContainer width="100%" height={240}>
-                  <BarChart
-                    data={[
-                      { name: "Min", Score: Math.round(selectedScoreJob.low_score || 0), fill: COLORS.red },
-                      { name: "Avg", Score: Math.round(selectedScoreJob.avg_score || 0), fill: COLORS.yellow },
-                      { name: "Max", Score: Math.round(selectedScoreJob.top_score || 0), fill: COLORS.primary },
-                    ]}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                    <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis domain={[0, 100]} tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <ReferenceLine y={50} stroke="#374151" strokeDasharray="4 4" />
-                    <Bar dataKey="Score" radius={[6, 6, 0, 0]} maxBarSize={70}>
-                      <Cell fill={COLORS.red} />
-                      <Cell fill={COLORS.yellow} />
-                      <Cell fill={COLORS.primary} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Applicants</p>
-                    <p className="text-lg font-semibold text-foreground">{selectedScoreJob.total_applications}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Passed Filter</p>
-                    <p className="text-lg font-semibold text-foreground">{selectedScoreJob.passed_filter}</p>
-                  </div>
-                  <div className="rounded-lg border border-border bg-secondary/20 p-3">
-                    <p className="text-xs text-muted-foreground">Failed Filter</p>
-                    <p className="text-lg font-semibold text-foreground">{selectedScoreJob.failed_filter}</p>
-                  </div>
-                </div>
-              </>
-            ) : null}
-          </CardContent>
-        </Card>
-      )}
-
       {/* ── Radar — Job Performance ── */}
       {radarData.length > 1 && (
+        isMobile ? (
+          <MobileAnalyticsItem value="radar" title="Job Performance Radar">
+            <p className="mb-3 text-xs text-muted-foreground">Multi-dimensional view of each job&apos;s performance</p>
+            <ResponsiveContainer width="100%" height={260}>
+              <RadarChart data={radarData}>
+                <PolarGrid stroke="#374151" />
+                <PolarAngleAxis dataKey="job" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+                <PolarRadiusAxis tick={{ fill: "#9ca3af", fontSize: 9 }} />
+                <Radar name="Avg Score" dataKey="Avg Score"
+                  stroke={COLORS.primary} fill={COLORS.primary} fillOpacity={0.2} />
+                <Radar name="Pass Rate" dataKey="Pass Rate"
+                  stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.2} />
+                <Legend wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
+                <Tooltip content={<CustomTooltip />} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </MobileAnalyticsItem>
+        ) : (
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-foreground text-sm flex items-center gap-2">
@@ -509,6 +526,7 @@ export function AnalyticsDashboard() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+        )
       )}
 
       {/* Empty state */}

@@ -48,6 +48,11 @@ export type ActionMessageResponse = {
   message: string
 }
 
+export type PasswordChangeStartResponse = {
+  message: string
+  expires_in: number
+}
+
 export const profileService = {
   async getMe() {
     return api.get<ProfileMeResponse>("/api/profile/me")
@@ -73,9 +78,17 @@ export const profileService = {
   },
 
   async changePassword(currentPassword: string, newPassword: string) {
-    return api.post<ActionMessageResponse>("/api/profile/change-password", {
+    return api.post<PasswordChangeStartResponse>("/api/profile/change-password", {
       current_password: currentPassword,
       new_password    : newPassword,
+    })
+  },
+
+  async confirmPasswordChange(currentPassword: string, newPassword: string, otp: string) {
+    return api.post<ActionMessageResponse>("/api/profile/change-password/confirm", {
+      current_password: currentPassword,
+      new_password    : newPassword,
+      otp,
     })
   },
 

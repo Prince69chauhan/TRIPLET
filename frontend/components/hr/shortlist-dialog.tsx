@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { jobService } from "@/lib/jobService"
 import { Button } from "@/components/ui/button"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { useIsMobile } from "@/hooks/use-mobile"
 import {
   CheckCircle2,
   ChevronDown,
@@ -61,6 +63,7 @@ export function ShortlistDialog({
   preselected: RankedCandidate | null
   onCompleted: () => Promise<void> | void
 }) {
+  const isMobile = useIsMobile()
   const [count, setCount] = useState(preselected ? 1 : 3)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
@@ -192,7 +195,55 @@ export function ShortlistDialog({
               </div>
             )}
 
-            <div className="space-y-2">
+            {isMobile && (
+              <Accordion type="multiple" defaultValue={["shortlisted"]} className="rounded-xl border border-border/60 bg-secondary/10">
+                <AccordionItem value="shortlisted" className="border-border/50 px-4">
+                  <AccordionTrigger className="py-3 text-sm font-medium text-foreground hover:no-underline">
+                    Will receive congratulations ({shortlisted.length})
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-4">
+                    <div className="max-h-40 space-y-1.5 overflow-y-auto">
+                      {shortlisted.map((candidate, index) => (
+                        <div
+                          key={candidate.application_id}
+                          className="flex items-center justify-between rounded-lg bg-green-500/10 p-2 text-sm"
+                        >
+                          <span className="text-foreground">#{index + 1} {candidate.full_name}</span>
+                          <span className="font-medium text-green-400">{pct(candidate.final_score_d)}%</span>
+                        </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+                {rejected.length > 0 && !preselected && (
+                  <AccordionItem value="rejected" className="border-b-0 border-border/50 px-4">
+                    <AccordionTrigger className="py-3 text-sm font-medium text-muted-foreground hover:no-underline">
+                      Will receive polite rejection ({rejected.length})
+                    </AccordionTrigger>
+                    <AccordionContent className="pb-4">
+                      <div className="max-h-28 space-y-1.5 overflow-y-auto">
+                        {rejected.slice(0, 5).map((candidate) => (
+                          <div
+                            key={candidate.application_id}
+                            className="flex items-center justify-between rounded-lg bg-secondary/30 p-2 text-sm"
+                          >
+                            <span className="text-muted-foreground">{candidate.full_name}</span>
+                            <span className="text-muted-foreground">{pct(candidate.final_score_d)}%</span>
+                          </div>
+                        ))}
+                        {rejected.length > 5 && (
+                          <p className="text-center text-xs text-muted-foreground">
+                            +{rejected.length - 5} more
+                          </p>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )}
+              </Accordion>
+            )}
+
+            <div className="hidden space-y-2 sm:block">
               <p className="flex items-center gap-2 text-sm font-medium text-foreground">
                 <ThumbsUp className="h-4 w-4 text-green-500" />
                 Will receive congratulations ({shortlisted.length})
@@ -211,7 +262,7 @@ export function ShortlistDialog({
             </div>
 
             {rejected.length > 0 && !preselected && (
-              <div className="space-y-2">
+              <div className="hidden space-y-2 sm:block">
                 <p className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                   <ThumbsDown className="h-4 w-4 text-red-400" />
                   Will receive polite rejection ({rejected.length})

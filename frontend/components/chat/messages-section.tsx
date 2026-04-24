@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
-import { Briefcase, ChevronDown, ChevronRight, Loader2, MessageSquare, Search } from "lucide-react"
+import { Briefcase, ChevronDown, ChevronRight, Loader2, MessageSquare, Search, SlidersHorizontal } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChatWindow } from "@/components/chat/chat-window"
 import api from "@/lib/api"
 
@@ -17,6 +20,8 @@ interface Conversation {
   other_party     : string
   last_message    : string | null
   last_message_at : string | null
+  message_count   : number
+  attachment_count: number
   unread_count    : number
 }
 
@@ -26,6 +31,8 @@ interface ConversationGroup {
   conversations: Conversation[]
   latest_message_at: string | null
   latest_message: string | null
+  message_count: number
+  attachment_count: number
   unread_count: number
 }
 
@@ -54,6 +61,9 @@ export function MessagesSection() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading]             = useState(true)
   const [search, setSearch]               = useState("")
+  const [messageFilter, setMessageFilter] = useState<"all" | "unread" | "files">("all")
+  const [messageSort, setMessageSort] = useState<"latest" | "oldest" | "most_messages" | "least_messages" | "most_unread">("latest")
+  const [filtersOpen, setFiltersOpen]     = useState(false)
   const [activeId, setActiveId]           = useState<string | null>(null)
   const [expandedGroups, setExpandedGroups] = useState<string[]>([])
 
@@ -88,6 +98,8 @@ export function MessagesSection() {
       if (existing) {
         existing.conversations.push(conversation)
         existing.unread_count += conversation.unread_count
+        existing.message_count += conversation.message_count
+        existing.attachment_count += conversation.attachment_count
         if (toTimeValue(conversation.last_message_at) > toTimeValue(existing.latest_message_at)) {
           existing.latest_message_at = conversation.last_message_at
           existing.latest_message = conversation.last_message
@@ -99,6 +111,8 @@ export function MessagesSection() {
           conversations: [conversation],
           latest_message_at: conversation.last_message_at,
           latest_message: conversation.last_message,
+          message_count: conversation.message_count,
+          attachment_count: conversation.attachment_count,
           unread_count: conversation.unread_count,
         })
       }
@@ -116,9 +130,35 @@ export function MessagesSection() {
 
   const filteredGroups = useMemo(() => {
     const query = search.trim().toLowerCase()
-    if (!query) return groupedConversations
+    const baseGroups = groupedConversations
+      .map((group) => {
+        let scopedConversations = group.conversations
 
-    return groupedConversations
+        if (messageFilter === "unread") {
+          scopedConversations = scopedConversations.filter((conversation) => conversation.unread_count > 0)
+        } else if (messageFilter === "files") {
+          scopedConversations = scopedConversations.filter((conversation) => conversation.attachment_count > 0)
+        }
+
+        if (scopedConversations.length === 0) return null
+
+        const latestScoped = [...scopedConversations].sort(
+          (a, b) => toTimeValue(b.last_message_at) - toTimeValue(a.last_message_at),
+        )[0]
+
+        return {
+          ...group,
+          conversations: scopedConversations,
+          latest_message_at: latestScoped?.last_message_at ?? group.latest_message_at,
+          latest_message: latestScoped?.last_message ?? group.latest_message,
+          unread_count: scopedConversations.reduce((total, conversation) => total + conversation.unread_count, 0),
+          message_count: scopedConversations.reduce((total, conversation) => total + conversation.message_count, 0),
+          attachment_count: scopedConversations.reduce((total, conversation) => total + conversation.attachment_count, 0),
+        }
+      })
+      .filter((group): group is ConversationGroup => Boolean(group))
+
+    const queryFiltered = !query ? baseGroups : baseGroups
       .map((group) => {
         const matchesGroup = group.other_party.toLowerCase().includes(query)
         const matchingConversations = matchesGroup
@@ -133,10 +173,31 @@ export function MessagesSection() {
         return {
           ...group,
           conversations: matchingConversations,
+          latest_message_at: matchingConversations[0]?.last_message_at ?? group.latest_message_at,
+          latest_message: matchingConversations[0]?.last_message ?? group.latest_message,
+          unread_count: matchingConversations.reduce((total, conversation) => total + conversation.unread_count, 0),
+          message_count: matchingConversations.reduce((total, conversation) => total + conversation.message_count, 0),
+          attachment_count: matchingConversations.reduce((total, conversation) => total + conversation.attachment_count, 0),
         }
       })
       .filter((group): group is ConversationGroup => Boolean(group))
-  }, [groupedConversations, search])
+
+    return [...queryFiltered].sort((a, b) => {
+      if (messageSort === "oldest") {
+        return toTimeValue(a.latest_message_at) - toTimeValue(b.latest_message_at)
+      }
+      if (messageSort === "most_messages") {
+        return b.message_count - a.message_count || toTimeValue(b.latest_message_at) - toTimeValue(a.latest_message_at)
+      }
+      if (messageSort === "least_messages") {
+        return a.message_count - b.message_count || toTimeValue(a.latest_message_at) - toTimeValue(b.latest_message_at)
+      }
+      if (messageSort === "most_unread") {
+        return b.unread_count - a.unread_count || toTimeValue(b.latest_message_at) - toTimeValue(a.latest_message_at)
+      }
+      return toTimeValue(b.latest_message_at) - toTimeValue(a.latest_message_at)
+    })
+  }, [groupedConversations, messageFilter, messageSort, search])
 
   useEffect(() => {
     if (!activeConv?.other_party) return
@@ -161,25 +222,78 @@ export function MessagesSection() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-xl font-semibold text-foreground">Messages</h2>
-        <p className="text-sm text-muted-foreground">Your hiring conversations</p>
+        <h2 className="text-lg font-semibold text-foreground sm:text-xl">Messages</h2>
+        <p className="text-xs text-muted-foreground sm:text-sm">Your hiring conversations</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 lg:items-start">
 
         {/* ── Conversation list ── */}
-        <div className="space-y-3 lg:col-span-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search conversations..."
-              className="pl-9 border-border bg-input text-sm text-foreground"
-            />
-          </div>
+        <div className="space-y-2.5 lg:col-span-1">
+          <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="space-y-2.5">
+            <div className="flex flex-col gap-2.5 sm:flex-row">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search conversations..."
+                  className="pl-9 border-border bg-input text-sm text-foreground"
+                />
+              </div>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="h-10 justify-between border-border/60 text-foreground sm:min-w-[168px]">
+                  <span className="flex items-center gap-2">
+                    <SlidersHorizontal className="h-4 w-4 text-primary" />
+                    Filter
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {messageFilter === "all"
+                      ? messageSort === "latest"
+                        ? "Latest first"
+                        : messageSort === "oldest"
+                          ? "Oldest first"
+                          : messageSort === "most_messages"
+                            ? "Most stacked"
+                            : messageSort === "least_messages"
+                              ? "Least stacked"
+                              : "Most unread"
+                      : messageFilter === "unread"
+                        ? "Unread only"
+                        : "File messages"}
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+            </div>
+            <CollapsibleContent className="pt-0.5">
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <Select value={messageFilter} onValueChange={(value) => setMessageFilter(value as "all" | "unread" | "files")}>
+                  <SelectTrigger className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground">
+                    <SelectValue placeholder="Filter messages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Messages</SelectItem>
+                    <SelectItem value="unread">Unread Only</SelectItem>
+                    <SelectItem value="files">File Messages</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={messageSort} onValueChange={(value) => setMessageSort(value as "latest" | "oldest" | "most_messages" | "least_messages" | "most_unread")}>
+                  <SelectTrigger className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground">
+                    <SelectValue placeholder="Sort messages" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">Latest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="most_messages">Most Stacked</SelectItem>
+                    <SelectItem value="least_messages">Least Stacked</SelectItem>
+                    <SelectItem value="most_unread">Most Unread</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
 
           {loading ? (
             <div className="flex justify-center py-12">
@@ -196,10 +310,10 @@ export function MessagesSection() {
             filteredGroups.map((group) => {
               const isExpanded = expandedGroups.includes(group.other_party)
               return (
-                <div key={group.other_party} className="space-y-2">
+                <div key={group.other_party} className="space-y-1.5">
                   <button
                     onClick={() => toggleGroup(group.other_party)}
-                    className={`w-full rounded-xl border p-4 text-left transition-colors hover:bg-secondary/40 ${
+                    className={`w-full rounded-xl border p-3 text-left transition-colors hover:bg-secondary/40 ${
                       isExpanded ? "border-primary/40 bg-primary/5" : "border-border bg-card"
                     }`}
                   >
@@ -216,7 +330,7 @@ export function MessagesSection() {
                             {group.unread_count > 0 && (
                               <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
                             )}
-                            <p className="truncate text-[15px] font-semibold text-foreground">
+                            <p className="truncate text-[14px] font-semibold text-foreground">
                               {group.other_party}
                             </p>
                           </div>
@@ -224,11 +338,11 @@ export function MessagesSection() {
                             {timeAgo(group.latest_message_at)}
                           </span>
                         </div>
-                        <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
-                          {group.conversations.length} job thread{group.conversations.length > 1 ? "s" : ""}
+                        <p className="mt-0.5 text-[12px] leading-5 text-muted-foreground">
+                          {group.conversations.length} job thread{group.conversations.length > 1 ? "s" : ""} · {group.message_count} msg
                         </p>
                         {group.latest_message && (
-                          <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground/80">
+                          <p className="mt-1 truncate text-[12px] leading-5 text-muted-foreground/80">
                             {group.latest_message}
                           </p>
                         )}
@@ -250,12 +364,12 @@ export function MessagesSection() {
                   </button>
 
                   {isExpanded && (
-                    <div className="space-y-2 pl-4">
+                    <div className="space-y-1.5 pl-3">
                       {group.conversations.map((conversation) => (
                         <button
                           key={conversation.id}
                           onClick={() => setActiveId(conversation.id)}
-                          className={`w-full rounded-xl border p-3 text-left transition-colors hover:bg-secondary/40 ${
+                          className={`w-full rounded-xl border p-2.5 text-left transition-colors hover:bg-secondary/40 ${
                             activeId === conversation.id
                               ? "border-primary/40 bg-primary/5"
                               : "border-border bg-card/80"
@@ -271,7 +385,7 @@ export function MessagesSection() {
                                   {conversation.unread_count > 0 && (
                                     <span className="inline-flex h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
                                   )}
-                                  <p className="truncate text-[14px] font-semibold text-foreground">
+                                  <p className="truncate text-[13px] font-semibold text-foreground">
                                     {conversation.job_title}
                                   </p>
                                 </div>
@@ -280,10 +394,13 @@ export function MessagesSection() {
                                 </span>
                               </div>
                               {conversation.last_message && (
-                                <p className="mt-1 truncate text-[13px] leading-5 text-muted-foreground">
+                                <p className="mt-1 truncate text-[12px] leading-5 text-muted-foreground">
                                   {conversation.last_message}
                                 </p>
                               )}
+                              <p className="mt-1 text-[11px] text-muted-foreground">
+                                {conversation.message_count} msg{conversation.message_count !== 1 ? "s" : ""}{conversation.attachment_count > 0 ? ` · ${conversation.attachment_count} file` : ""}
+                              </p>
                             </div>
                             {conversation.unread_count > 0 && (
                               <Badge className="flex h-5 min-w-[20px] items-center justify-center bg-primary px-1.5 text-[11px] font-medium text-primary-foreground">
@@ -304,7 +421,7 @@ export function MessagesSection() {
         {/* ── Chat pane ── */}
         <div className="lg:col-span-2">
           {activeConv ? (
-            <Card className="border-border bg-card h-[600px] flex flex-col overflow-hidden">
+            <Card className="border-border bg-card flex h-[68vh] min-h-[460px] flex-col overflow-hidden sm:h-[600px]">
               <ChatWindow
                 conversationId={activeConv.id}
                 jobTitle={activeConv.job_title}
@@ -314,7 +431,7 @@ export function MessagesSection() {
               />
             </Card>
           ) : (
-            <Card className="border-border bg-card h-[600px] flex items-center justify-center">
+            <Card className="border-border bg-card flex h-[68vh] min-h-[460px] items-center justify-center sm:h-[600px]">
               <div className="text-center space-y-2">
                 <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto opacity-30" />
                 <p className="text-sm font-medium text-foreground">Select a conversation</p>

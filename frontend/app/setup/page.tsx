@@ -15,10 +15,11 @@ import { candidateService } from "@/lib/candidateService"
 import { authService } from "@/lib/authService"
 import { cgpaToPercentage, isPercentageValid, formatFileSize, cn } from "@/lib/utils"
 import { useRoleGuard } from "@/hooks/use-role-guard"
+import { useTheme } from "@/hooks/useTheme"
 import {
   User, Phone, GraduationCap, AlertCircle,
   Upload, CheckCircle2, X, Plus, ArrowRight,
-  Sparkles, FileText, RefreshCw, Loader2
+  Sparkles, FileText, RefreshCw, Loader2, Moon, Sun
 } from "lucide-react"
 
 const STEPS = ["Personal Info", "Education", "Gap & Backlogs", "Resume Upload", "Skills Review"]
@@ -53,6 +54,7 @@ const MAX_SIZE = 5 * 1024 * 1024
 export default function SetupPage() {
   const router = useRouter()
   const { authorized, checking } = useRoleGuard("candidate")
+  const { theme, toggleTheme } = useTheme()
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -294,7 +296,7 @@ export default function SetupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background px-4 pb-8 pt-20 sm:px-6 sm:pb-10 sm:pt-24 md:flex md:items-center md:justify-center">
       {step > 0 && (
         <FloatingBackButton
           onClick={() => { setStep(s => s - 1); setError("") }}
@@ -302,36 +304,59 @@ export default function SetupPage() {
         />
       )}
 
-      <div className="w-full max-w-2xl space-y-6">
+      <div className="fixed right-4 top-4 z-50 sm:right-6 sm:top-6">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={toggleTheme}
+          className="h-10 w-10 rounded-xl border-border/80 bg-card/95 text-muted-foreground shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/80 hover:text-foreground"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+        </Button>
+      </div>
+
+      <div className="mx-auto w-full max-w-3xl space-y-4 sm:space-y-6">
 
         {/* Header */}
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
+        <div className="mx-auto max-w-xl text-center">
+          <div className="mb-3 flex items-center justify-center gap-2 sm:mb-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </div>
             <span className="text-xl font-bold text-foreground">TRIPLET</span>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Complete Your Profile</h1>
+          <Badge className="mb-3 border-0 bg-primary/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-primary">
+            Candidate Setup
+          </Badge>
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">Complete Your Profile</h1>
           <p className="text-muted-foreground mt-1">Step {step + 1} of {STEPS.length} — {STEPS[step]}</p>
         </div>
 
         {/* Progress */}
-        <div className="space-y-2">
+        <div className="space-y-2 sm:space-y-3">
           <Progress value={progress} className="h-2" />
-          <div className="flex justify-between">
-            {STEPS.map((s, i) => (
-              <span key={s} className={cn(
-                "text-xs hidden sm:block",
-                i === step ? "text-primary font-medium" : "text-muted-foreground"
-              )}>{s}</span>
-            ))}
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-2 sm:grid sm:min-w-0 sm:grid-cols-5 sm:gap-3">
+              {STEPS.map((s, i) => (
+                <span key={s} className={cn(
+                  "rounded-full border px-3 py-1.5 text-[11px] font-medium whitespace-nowrap transition-colors sm:px-2 sm:text-center",
+                  i === step
+                    ? "border-primary/35 bg-primary/10 text-primary"
+                    : i < step
+                    ? "border-primary/20 bg-primary/5 text-primary/80"
+                    : "border-border bg-card text-muted-foreground"
+                )}>{s}</span>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Card */}
         <Card className="bg-card border-border">
-          <CardContent className="p-6 space-y-5">
+          <CardContent className="space-y-5 p-4 sm:p-6">
 
             {/* ── STEP 0: Personal Info ── */}
             {step === 0 && (
@@ -501,7 +526,7 @@ export default function SetupPage() {
             {step === 2 && (
               <div className="space-y-5">
                 <TooltipWrapper content={TOOLTIPS.has_gap}>
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/30">
+                  <div className="flex flex-col gap-4 rounded-lg bg-secondary/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="font-medium text-foreground">Education / Employment Gap</p>
                       <p className="text-sm text-muted-foreground">Do you have any gap in your history?</p>
@@ -564,7 +589,7 @@ export default function SetupPage() {
                 <TooltipWrapper content={TOOLTIPS.resume}>
                   <div
                     className={cn(
-                      "border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer",
+                      "cursor-pointer rounded-xl border-2 border-dashed p-6 text-center transition-colors sm:p-8",
                       file ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/50"
                     )}
                     onDragOver={e => e.preventDefault()}
@@ -690,7 +715,7 @@ export default function SetupPage() {
                         ))}
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 sm:flex-row">
                         <Input
                           value={newSkill}
                           onChange={e => setNewSkill(e.target.value)}
@@ -707,7 +732,7 @@ export default function SetupPage() {
                           type="button"
                           variant="outline"
                           onClick={() => void handleAddSkill()}
-                          className="border-border"
+                          className="border-border sm:w-auto"
                         >
                           <Plus className="h-4 w-4" />
                         </Button>

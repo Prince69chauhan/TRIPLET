@@ -82,8 +82,46 @@ We received a request to reset your Triplet password.
 Click the link below to set a new password:
 {reset_url}
 
-This link expires in 1 hour.
-If you did not request a password reset, you can safely ignore this email.
+This link expires in 15 minutes and can only be used once.
+If you did not request a password reset, you can safely ignore this email
+— your account remains secure.
+
+— The Triplet Team
+"""
+    return subject, body
+
+
+def password_change_verification(full_name: str, otp: str) -> tuple[str, str]:
+    subject = "Verify your Triplet password change"
+    body = f"""Hi {full_name},
+
+We received a request to update your Triplet account password from the settings page.
+
+Enter the verification code below to confirm this change:
+
+        {otp}
+
+This code expires in 4 minutes.
+If you did not request this password update, please ignore this email and keep your current password.
+
+— The Triplet Team
+"""
+    return subject, body
+
+
+def email_verification(full_name: str, otp: str) -> tuple[str, str]:
+    subject = "Verify your email for Triplet"
+    body = f"""Hi {full_name},
+
+Thanks for creating a Triplet account. To finish signing up, enter the
+verification code below on the sign-up screen:
+
+        {otp}
+
+This code expires in 4 minutes.
+Do not share this code with anyone.
+
+If you did not create an account, please ignore this email.
 
 — The Triplet Team
 """

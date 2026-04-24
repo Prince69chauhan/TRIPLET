@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,14 +12,65 @@ import { Badge } from "@/components/ui/badge"
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper"
 import { FloatingBackButton } from "@/components/ui/floating-back-button"
 import { profileService } from "@/lib/profileService"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   Building, Camera, Save,
-  AlertCircle, CheckCircle2, Loader2, Globe, Briefcase
+  AlertCircle, CheckCircle2, Loader2, Globe, Briefcase, type LucideIcon
 } from "lucide-react"
+
+function ResponsiveEmployerSection({
+  title,
+  icon: Icon,
+  children,
+  isMobile,
+  defaultOpen = false,
+  className = "",
+  contentClassName = "",
+}: {
+  title: string
+  icon: LucideIcon
+  children: ReactNode
+  isMobile: boolean
+  defaultOpen?: boolean
+  className?: string
+  contentClassName?: string
+}) {
+  if (isMobile) {
+    return (
+      <Card className={`bg-card border-border py-0 ${className}`}>
+        <Accordion type="single" collapsible defaultValue={defaultOpen ? "content" : undefined} className="w-full">
+          <AccordionItem value="content" className="border-b-0">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <Icon className="h-4 w-4 text-primary" />
+                {title}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className={`px-4 pb-4 ${contentClassName}`}>
+              {children}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className={`bg-card border-border ${className}`}>
+      <CardHeader>
+        <CardTitle className="text-foreground flex items-center gap-2 text-base">
+          <Icon className="h-4 w-4 text-primary" /> {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className={contentClassName}>{children}</CardContent>
+    </Card>
+  )
+}
 
 export default function HRProfilePage() {
   const router      = useRouter()
+  const isMobile = useIsMobile()
   const { authorized, checking } = useRoleGuard("employer")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const avatarObjectUrlRef = useRef<string | null>(null)
@@ -143,14 +195,14 @@ export default function HRProfilePage() {
     <div className="min-h-screen bg-background">
       <FloatingBackButton onClick={() => router.back()} />
 
-      <div className="border-b border-border bg-card px-6 py-4">
+      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="pl-20 sm:pl-24">
           <h1 className="font-semibold text-foreground">Company Profile</h1>
           <p className="text-xs text-muted-foreground">Manage your company information</p>
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto p-6 space-y-6">
+      <div className="mx-auto max-w-2xl space-y-4 p-4 sm:space-y-6 sm:p-6">
         {success && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
             <CheckCircle2 className="h-4 w-4" /> {success}
@@ -164,9 +216,9 @@ export default function HRProfilePage() {
         )}
 
         {/* Avatar */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        <Card className="bg-card border-border py-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
               <div className="relative">
                 <Avatar className="h-24 w-24 border-2 border-border">
                   {avatarUrl && <AvatarImage src={avatarUrl} alt={form.company_name} />}
@@ -197,13 +249,13 @@ export default function HRProfilePage() {
         </Card>
 
         {/* Company Info */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <Building className="h-4 w-4 text-primary" /> Company Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <ResponsiveEmployerSection
+          title="Company Information"
+          icon={Building}
+          isMobile={isMobile}
+          defaultOpen
+          contentClassName="space-y-4"
+        >
             <TooltipWrapper content="Your company's official registered name.">
               <div className="space-y-2">
                 <Label className="text-foreground text-sm">Company Name</Label>
@@ -228,8 +280,7 @@ export default function HRProfilePage() {
                   className="bg-input border-border text-foreground" placeholder="Technology" />
               </div>
             </TooltipWrapper>
-          </CardContent>
-        </Card>
+        </ResponsiveEmployerSection>
 
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary text-primary-foreground">
           {saving

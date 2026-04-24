@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -27,9 +28,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { TooltipWrapper } from "@/components/ui/tooltip-wrapper"
 import { jobService } from "@/lib/jobService"
 import { markJobApplicationsSeen, subscribeToIndicatorChanges, syncJobApplicationIndicators } from "@/lib/activity-indicators"
+import { getJobVisual } from "@/lib/job-visuals"
 import { cn } from "@/lib/utils"
 import {
   Briefcase,
@@ -55,19 +64,31 @@ import {
   SlidersHorizontal,
   Layers3,
   Clock3,
+  MoreHorizontal,
   Users2,
   type LucideIcon,
 } from "lucide-react"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { useInfiniteScroll } from "@/hooks/use-infinite-scroll"
+import { useIsMobile } from "@/hooks/use-mobile"
+import { useSwipeTabNavigation } from "@/hooks/use-swipe-tab-navigation"
 
-type JobStatus = "active" | "paused" | "removed" | "completed"
-type TabType   = "post" | "posted" | "active" | "inactive" | "past"
-
-const WINDOWED_JOB_CARD_STYLE = {
-  contentVisibility: "auto",
-  containIntrinsicSize: "160px",
-} as const
+import {
+  JobListTab,
+  SectionPanel,
+  StatusBadge,
+  MetaPill,
+  canOpenRankingForJob,
+  getPendingActionCopy,
+} from "./shared"
+import type {
+  Counts,
+  Job,
+  JobStatus,
+  ManagedJobsResponse,
+  PendingJobAction,
+  TabType,
+} from "./shared"
 
 const JobDetailDialog = dynamic(
   () => import("@/components/hr/job-detail-dialog").then((module) => module.JobDetailDialog),
@@ -88,862 +109,11 @@ const EMPTY_FORM_DATA = {
   max_passout_year: "",
 }
 
-interface Job {
-  id              : string
-  title           : string
-  description     : string
-  department?     : string | null
-  employment_type?: string | null
-  location?       : string | null
-  salary?         : string | null
-  vacancies?      : number | null
-  required_skills : string[]
-  min_tenth_percentage?: number | null
-  min_twelfth_percentage?: number | null
-  min_cgpa        : number | null
-  min_passout_year: number | null
-  max_passout_year: number | null
-  allow_gap       : boolean
-  max_gap_months? : number | null
-  allow_backlogs  : boolean
-  max_active_backlogs?: number | null
-  bonus_skill_in_project?: number | null
-  bonus_elite_internship?: number | null
-  bonus_project_level?: number | null
-  bonus_internship_duration?: number | null
-  status          : JobStatus
-  created_at      : string
-  updated_at      : string
-}
-
-interface Counts {
-  posted  : number
-  active  : number
-  inactive: number
-  past    : number
-  total   : number
-}
-
-interface ManagedJobsResponse {
-  items    : Job[]
-  total    : number
-  page     : number
-  page_size: number
-  has_more : boolean
-}
-
-interface PendingJobAction {
-  kind  : "status" | "remove"
-  jobIds: string[]
-  status?: Extract<JobStatus, "active" | "paused">
-}
-
-// ── Status badge ──────────────────────────────────────────────
-const StatusBadge = memo(function StatusBadge({ status }: { status: JobStatus }) {
-  const map: Record<JobStatus, string> = {
-    active   : "bg-green-500/10 text-green-500 border-green-500/20",
-    paused   : "bg-yellow-500/10 text-yellow-500 border-yellow-500/20",
-    removed  : "bg-gray-500/10 text-gray-400 border-gray-500/20",
-    completed: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  }
-  const labels: Record<JobStatus, string> = {
-    active: "Active", paused: "Paused",
-    removed: "Removed", completed: "Completed",
-  }
-  return (
-    <Badge className={`text-xs border ${map[status]}`}>
-      {labels[status]}
-    </Badge>
-  )
-})
-
-function getPendingActionCopy(action: PendingJobAction | null) {
-  if (!action) {
-    return {
-      title: "Confirm action",
-      description: "",
-      cta: "Confirm",
-      buttonClassName: "bg-primary text-primary-foreground hover:bg-primary/90",
-      successMessage: "",
-      errorMessage: "Failed to update jobs. Please try again.",
-    }
-  }
-
-  const count = action.jobIds.length
-  const jobLabel = count === 1 ? "this job" : `${count} jobs`
-
-  if (action.kind === "remove") {
-    return {
-      title: count === 1 ? "Remove this job?" : `Remove ${count} jobs?`,
-      description: `This will move ${jobLabel} to Past Jobs and candidates will no longer be able to apply.`,
-      cta: count === 1 ? "Remove Job" : `Remove ${count} Jobs`,
-      buttonClassName: "bg-red-500 text-white hover:bg-red-500/90",
-      successMessage: count === 1 ? "Job moved to Past Jobs." : `${count} jobs moved to Past Jobs.`,
-      errorMessage: "Failed to remove the selected jobs. Please try again.",
-    }
-  }
-
-  if (action.status === "paused") {
-    return {
-      title: count === 1 ? "Pause this job?" : `Pause ${count} jobs?`,
-      description: `Candidates will still see ${jobLabel}, but they will not be able to apply until you resume them.`,
-      cta: count === 1 ? "Pause Job" : `Pause ${count} Jobs`,
-      buttonClassName: "bg-yellow-500 text-black hover:bg-yellow-500/90",
-      successMessage: count === 1 ? "Job paused successfully." : `${count} jobs paused successfully.`,
-      errorMessage: "Failed to pause the selected jobs. Please try again.",
-    }
-  }
-
-  return {
-    title: count === 1 ? "Resume this job?" : `Resume ${count} jobs?`,
-    description: `Candidates will be able to apply to ${jobLabel} again as soon as you confirm.`,
-    cta: count === 1 ? "Resume Job" : `Resume ${count} Jobs`,
-    buttonClassName: "bg-green-600 text-white hover:bg-green-600/90",
-    successMessage: count === 1 ? "Job resumed successfully." : `${count} jobs resumed successfully.`,
-    errorMessage: "Failed to resume the selected jobs. Please try again.",
-  }
-}
-
-function compactValue(value: string | number | null | undefined) {
-  if (value === null || value === undefined || value === "") {
-    return null
-  }
-
-  return String(value)
-}
-
-function canOpenRankingForJob(job: Job) {
-  return job.status === "active" || job.status === "paused"
-}
-
-const MetaPill = memo(function MetaPill({
-  icon: Icon,
-  value,
-  className,
-}: {
-  icon: LucideIcon
-  value: string | number | null | undefined
-  className?: string
-}) {
-  const resolved = compactValue(value)
-  if (!resolved) return null
-
-  return (
-    <div
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-border/80 bg-secondary/70 px-3 py-1.5 text-xs font-medium text-foreground/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] dark:bg-secondary/60 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
-        className,
-      )}
-    >
-      <Icon className="h-3.5 w-3.5 text-primary" />
-      <span>{resolved}</span>
-    </div>
-  )
-})
-
-const SectionPanel = memo(function SectionPanel({
-  icon: Icon,
-  title,
-  description,
-  children,
-  className,
-}: {
-  icon: LucideIcon
-  title: string
-  description: string
-  children: ReactNode
-  className?: string
-}) {
-  return (
-    <div
-      className={cn(
-        "rounded-[1.45rem] border border-border/85 bg-secondary/52 p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.16)] dark:bg-secondary/42 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
-        className,
-      )}
-    >
-      <div className="mb-5 flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10">
-          <Icon className="h-4.5 w-4.5 text-primary" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold tracking-[-0.02em] text-foreground">{title}</h3>
-            <TooltipWrapper content={description} className="w-auto">
-              <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-border/80 bg-card/80 text-muted-foreground">
-                <AlertCircle className="h-3.5 w-3.5" />
-              </span>
-            </TooltipWrapper>
-          </div>
-        </div>
-      </div>
-      <div className="space-y-5">{children}</div>
-    </div>
-  )
-})
-
-/* extracted to "@/components/hr/job-detail-dialog"
-function detailValue(value: string | number | null | undefined, fallback = "Not specified") {
-  return value === null || value === undefined || value === "" ? fallback : String(value)
-}
-
-// ── Job detail dialog ─────────────────────────────────────────
-const JobDetailDialog = memo(function JobDetailDialog({ job, onClose }: { job: Job | null; onClose: () => void }) {
-  if (!job) return null
-  return (
-    <Dialog open={!!job} onOpenChange={onClose}>
-      <DialogContent className="bg-card border-border max-w-4xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-foreground flex items-center gap-3">
-            {job.title}
-            <StatusBadge status={job.status} />
-          </DialogTitle>
-          <DialogDescription>
-            Posted {new Date(job.created_at).toLocaleDateString()}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-6 mt-2">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                Department
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground break-words">{detailValue(job.department)}</p>
-            </div>
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Briefcase className="h-3.5 w-3.5" />
-                Job Type
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground break-words">{detailValue(job.employment_type)}</p>
-            </div>
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5" />
-                Location
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground break-words">{detailValue(job.location)}</p>
-            </div>
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <DollarSign className="h-3.5 w-3.5" />
-                Salary
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground break-words">{detailValue(job.salary)}</p>
-            </div>
-            <div className="rounded-lg bg-secondary/30 p-4">
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" />
-                Vacancies
-              </p>
-              <p className="mt-1 text-sm font-medium text-foreground">{detailValue(job.vacancies, "1")}</p>
-            </div>
-          </div>
-
-          {job.description && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-1">Description</p>
-              <div className="rounded-lg bg-secondary/20 p-4">
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap break-words">{job.description}</p>
-              </div>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-3 rounded-lg bg-secondary/20 p-4">
-              <p className="text-sm font-medium text-foreground">Eligibility Criteria</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">10th Minimum</p>
-                  <p className="text-sm font-medium text-foreground">{detailValue(job.min_tenth_percentage, "No minimum")}%</p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">12th Minimum</p>
-                  <p className="text-sm font-medium text-foreground">{detailValue(job.min_twelfth_percentage, "No minimum")}%</p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Min CGPA</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {job.min_cgpa !== null && job.min_cgpa !== undefined
-                      ? `${job.min_cgpa} (${(job.min_cgpa * 9.5).toFixed(1)}%)`
-                      : "No minimum"}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Passout Range</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {job.min_passout_year || job.max_passout_year
-                      ? `${job.min_passout_year ?? "Any"} - ${job.max_passout_year ?? "Any"}`
-                      : "Not specified"}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3 rounded-lg bg-secondary/20 p-4">
-              <p className="text-sm font-medium text-foreground">Hiring Rules</p>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Gap Allowed</p>
-                  <p className="text-sm font-medium text-foreground">{job.allow_gap ? "Yes" : "No"}</p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Max Gap Months</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {job.allow_gap ? detailValue(job.max_gap_months, "No limit specified") : "Not applicable"}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Backlogs Allowed</p>
-                  <p className="text-sm font-medium text-foreground">{job.allow_backlogs ? "Yes" : "No"}</p>
-                </div>
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="text-xs text-muted-foreground">Max Active Backlogs</p>
-                  <p className="text-sm font-medium text-foreground">
-                    {job.allow_backlogs ? detailValue(job.max_active_backlogs, "No limit specified") : "Not applicable"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-3 rounded-lg bg-secondary/20 p-4">
-            <p className="text-sm font-medium text-foreground">AI Bonus Criteria</p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <p className="text-xs text-muted-foreground">Skill in Project Bonus</p>
-                <p className="text-sm font-medium text-foreground">{detailValue(job.bonus_skill_in_project, "None")}</p>
-              </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <p className="text-xs text-muted-foreground">Elite Internship Bonus</p>
-                <p className="text-sm font-medium text-foreground">{detailValue(job.bonus_elite_internship, "None")}</p>
-              </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <p className="text-xs text-muted-foreground">Project Level Bonus</p>
-                <p className="text-sm font-medium text-foreground">{detailValue(job.bonus_project_level, "None")}</p>
-              </div>
-              <div className="rounded-lg bg-secondary/30 p-3">
-                <p className="text-xs text-muted-foreground">Internship Duration Bonus</p>
-                <p className="text-sm font-medium text-foreground">{detailValue(job.bonus_internship_duration, "None")}</p>
-              </div>
-            </div>
-          </div>
-
-          {job.required_skills?.length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-foreground mb-2">Required Skills</p>
-              <div className="flex flex-wrap gap-2">
-                {job.required_skills.map(s => (
-                  <Badge key={s} variant="secondary" className="bg-secondary text-secondary-foreground">
-                    {s}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  )
-})
-
-// ── Job card ──────────────────────────────────────────────────
-*/
-const JobCard = memo(function JobCard({
-  job,
-  tab,
-  selectionMode,
-  selected,
-  onOpenRanking,
-  onStatusChange,
-  onEdit,
-  onRemove,
-  onView,
-  onToggleSelect,
-  updating,
-  bulkUpdating,
-  showNewApplicationDot,
-}: {
-  job           : Job
-  tab           : TabType
-  selectionMode : boolean
-  selected      : boolean
-  onOpenRanking : (job: Job) => void
-  onStatusChange: (id: string, status: JobStatus) => void
-  onEdit        : (job: Job) => void
-  onRemove      : (id: string) => void
-  onView        : (job: Job) => void
-  onToggleSelect: (id: string) => void
-  updating      : string | null
-  bulkUpdating  : boolean
-  showNewApplicationDot?: boolean
-}) {
-  const isUpdating = updating === job.id
-  const isBusy = isUpdating || bulkUpdating
-  const isCardClickable = tab !== "past" && !selectionMode
-  const handleOpenRanking = () => {
-    if (!isCardClickable || isBusy) return
-    onOpenRanking(job)
-  }
-
-  return (
-    <div
-      className={cn(
-        "group flex items-start gap-4 rounded-[1.45rem] border border-border/85 bg-card/94 p-4 shadow-[0_12px_28px_rgba(15,23,42,0.05)] transition-all dark:bg-card/88",
-        isCardClickable
-          ? "cursor-pointer hover:border-primary/24 hover:bg-card"
-          : "cursor-default",
-      )}
-      style={WINDOWED_JOB_CARD_STYLE}
-      onClick={handleOpenRanking}
-      onKeyDown={(event) => {
-        if ((event.key === "Enter" || event.key === " ") && isCardClickable) {
-          event.preventDefault()
-          handleOpenRanking()
-        }
-      }}
-      role={isCardClickable ? "button" : undefined}
-      tabIndex={isCardClickable ? 0 : undefined}
-      aria-label={isCardClickable ? `Open ranking for ${job.title}` : undefined}
-    >
-      {selectionMode && (
-        <Checkbox
-          checked={selected}
-          onCheckedChange={() => onToggleSelect(job.id)}
-          onClick={(event) => event.stopPropagation()}
-          aria-label={`Select ${job.title}`}
-          className="mt-1 shrink-0"
-        />
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              {showNewApplicationDot && (
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
-              )}
-              <h4 className="text-base font-semibold tracking-[-0.02em] text-foreground">{job.title}</h4>
-              <StatusBadge status={job.status} />
-            </div>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <MetaPill icon={Building2} value={job.department} />
-              <MetaPill icon={Briefcase} value={job.employment_type} />
-              <MetaPill icon={MapPin} value={job.location} />
-              <MetaPill icon={Wallet} value={job.salary} />
-              <MetaPill icon={Users2} value={job.vacancies ? `${job.vacancies} vacancies` : null} />
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/80 bg-secondary/55 px-3 py-2 text-right shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:bg-secondary/42">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Posted</p>
-            <p className="mt-1 text-sm font-medium text-foreground">{new Date(job.created_at).toLocaleDateString()}</p>
-          </div>
-        </div>
-        <div className="mt-4 flex flex-wrap gap-1.5">
-          {job.required_skills?.slice(0, 3).map(s => (
-            <Badge key={s} variant="secondary" className="border border-border/70 bg-secondary/60 text-xs text-foreground/88">
-              {s}
-            </Badge>
-          ))}
-          {(job.required_skills?.length || 0) > 3 && (
-            <Badge variant="secondary" className="border border-border/70 bg-secondary/60 text-xs text-muted-foreground">
-              +{job.required_skills.length - 3}
-            </Badge>
-          )}
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5">
-            <Clock3 className="h-3.5 w-3.5" />
-            Updated {new Date(job.updated_at).toLocaleDateString()}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <Layers3 className="h-3.5 w-3.5" />
-            {job.required_skills?.length || 0} tracked skills
-          </span>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div
-        className="flex shrink-0 flex-wrap items-center gap-2 self-center rounded-2xl border border-border/75 bg-secondary/48 p-2 dark:bg-secondary/36"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {/* View Details — all tabs */}
-        <TooltipWrapper content="View full job details">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onView(job)}
-              disabled={bulkUpdating}
-              className="h-8 border-border text-muted-foreground hover:text-foreground"
-            >
-            <Eye className="h-3.5 w-3.5" />
-          </Button>
-        </TooltipWrapper>
-
-        {/* Pause / Activate — not in past tab */}
-        {tab !== "past" && (
-          <>
-            {job.status === "active" ? (
-              <TooltipWrapper content="Pause this job — candidates can see it but cannot apply">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onStatusChange(job.id, "paused")}
-                  disabled={isBusy}
-                  className="h-8 border-yellow-500/35 text-yellow-600 hover:bg-yellow-500/12 dark:text-yellow-400"
-                >
-                  {isUpdating
-                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    : <Pause className="h-3.5 w-3.5" />
-                  }
-                </Button>
-              </TooltipWrapper>
-            ) : job.status === "paused" ? (
-              <>
-                <TooltipWrapper content="Edit this paused job before resuming">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onEdit(job)}
-                    disabled={isBusy}
-                    className="h-8 border-blue-500/35 text-blue-600 hover:bg-blue-500/12 dark:text-blue-400"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipWrapper>
-                <TooltipWrapper content="Activate this job — candidates can apply again">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onStatusChange(job.id, "active")}
-                    disabled={isBusy}
-                    className="h-8 border-green-500/35 text-green-600 hover:bg-green-500/12 dark:text-green-400"
-                  >
-                    {isUpdating
-                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      : <Play className="h-3.5 w-3.5" />
-                    }
-                  </Button>
-                </TooltipWrapper>
-              </>
-            ) : null}
-
-            {/* Remove */}
-            <TooltipWrapper content="Remove this job permanently — moves to Past Jobs">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onRemove(job.id)}
-                disabled={isBusy}
-                className="h-8 border-red-500/35 text-red-600 hover:bg-red-500/12 dark:text-red-400"
-              >
-                {isUpdating
-                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  : <Trash2 className="h-3.5 w-3.5" />
-                }
-              </Button>
-            </TooltipWrapper>
-          </>
-        )}
-      </div>
-    </div>
-  )
-})
-
-// ── Job list tab ──────────────────────────────────────────────
-function JobListTab({
-  tab,
-  jobs,
-  search,
-  filterMode,
-  total,
-  selectionMode,
-  selectedJobIds,
-  onOpenRanking,
-  onStatusChange,
-  onEdit,
-  onRemove,
-  onView,
-  onPostJob,
-  onToggleSelectionMode,
-  onToggleSelectJob,
-  onSelectVisibleJobs,
-  onClearSelection,
-  onBulkPause,
-  onBulkResume,
-  onBulkRemove,
-  onSearchChange,
-  onFilterModeChange,
-  onLoadMore,
-  updating,
-  bulkUpdating,
-  unseenApplicationJobIds,
-  loading,
-  loadingMore,
-  hasMore,
-  loadMoreRef,
-}: {
-  tab           : Exclude<TabType, "post">
-  jobs          : Job[]
-  search        : string
-  filterMode    : "all" | "with_cgpa" | "with_skills"
-  total         : number
-  selectionMode : boolean
-  selectedJobIds: string[]
-  onOpenRanking : (job: Job) => void
-  onStatusChange: (id: string, status: JobStatus) => void
-  onEdit        : (job: Job) => void
-  onRemove      : (id: string) => void
-  onView        : (job: Job) => void
-  onPostJob     : () => void
-  onToggleSelectionMode: () => void
-  onToggleSelectJob    : (id: string) => void
-  onSelectVisibleJobs  : () => void
-  onClearSelection     : () => void
-  onBulkPause          : (ids: string[]) => void
-  onBulkResume         : (ids: string[]) => void
-  onBulkRemove         : (ids: string[]) => void
-  onSearchChange: (value: string) => void
-  onFilterModeChange: (value: "all" | "with_cgpa" | "with_skills") => void
-  onLoadMore    : () => void
-  updating      : string | null
-  bulkUpdating  : boolean
-  unseenApplicationJobIds: Set<string>
-  loading       : boolean
-  loadingMore   : boolean
-  hasMore       : boolean
-  loadMoreRef   : React.RefObject<HTMLDivElement | null>
-}) {
-  const emptyMessages: Record<Exclude<TabType, "post">, { title: string; sub: string }> = {
-    posted  : { title: "No posted jobs",  sub: "Post your first job using the button above" },
-    active  : { title: "No active jobs",  sub: "Activate a paused job or post a new one" },
-    inactive: { title: "No paused jobs",  sub: "All your jobs are currently active" },
-    past    : { title: "No past jobs",    sub: "Removed or completed jobs will appear here" },
-  }
-  const canSelectJobs = tab !== "past"
-  const selectedJobs = useMemo(
-    () => jobs.filter((job) => selectedJobIds.includes(job.id)),
-    [jobs, selectedJobIds],
-  )
-  const selectedActiveIds = useMemo(
-    () => selectedJobs.filter((job) => job.status === "active").map((job) => job.id),
-    [selectedJobs],
-  )
-  const selectedPausedIds = useMemo(
-    () => selectedJobs.filter((job) => job.status === "paused").map((job) => job.id),
-    [selectedJobs],
-  )
-  const allVisibleSelected = jobs.length > 0 && jobs.every((job) => selectedJobIds.includes(job.id))
-  const tabMeta: Record<Exclude<TabType, "post">, { title: string; description: string }> = {
-    posted: {
-      title: "All posted jobs",
-      description: "Review every role you've created, search faster, and jump back into a posting whenever needed.",
-    },
-    active: {
-      title: "Active listings",
-      description: "These roles are live for candidates. Pause, review, or remove them from one place.",
-    },
-    inactive: {
-      title: "Paused listings",
-      description: "Paused jobs stay visible but closed to applications until you resume them.",
-    },
-    past: {
-      title: "Past listings",
-      description: "Removed and completed roles stay here for history, reporting, and quick review.",
-    },
-  }
-  const hasTabIndicator = jobs.some((job) => unseenApplicationJobIds.has(job.id))
-
-  return (
-    <div className="space-y-4">
-      {/* Search + filter + post job */}
-      <div className="rounded-[1.55rem] border border-border/85 bg-card/94 p-4 shadow-[0_14px_34px_rgba(15,23,42,0.05)] dark:bg-card/88">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Job Operations</p>
-            <div className="mt-2 flex items-center gap-2">
-              {hasTabIndicator && (
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
-              )}
-              <h3 className="text-xl font-semibold tracking-[-0.03em] text-foreground">{tabMeta[tab].title}</h3>
-            </div>
-            <p className="mt-1 max-w-2xl text-sm leading-relaxed text-muted-foreground">{tabMeta[tab].description}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <span className="rounded-full border border-border/80 bg-secondary/60 px-3 py-1.5 font-medium text-foreground/88">
-              {total} total
-            </span>
-            <span className="rounded-full border border-border/80 bg-secondary/60 px-3 py-1.5">
-              {jobs.length} loaded
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-3 items-center">
-          <div className="relative min-w-[240px] flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={e => onSearchChange(e.target.value)}
-              placeholder="Search jobs by title, skill, or department..."
-              className="bg-card border-border text-foreground pl-10"
-            />
-          </div>
-          <Select
-            value={filterMode}
-            onValueChange={onFilterModeChange}
-          >
-            <SelectTrigger className="w-[180px] bg-card border-border text-foreground">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">All Jobs</SelectItem>
-              <SelectItem value="with_cgpa">With CGPA Rule</SelectItem>
-              <SelectItem value="with_skills">With Skills</SelectItem>
-            </SelectContent>
-          </Select>
-          <TooltipWrapper content="Post a new job opening" className="w-auto">
-            <Button
-              onClick={onPostJob}
-              className="bg-primary text-primary-foreground shrink-0"
-            >
-              <Plus className="h-4 w-4 mr-1" /> Post Job
-            </Button>
-          </TooltipWrapper>
-          {canSelectJobs && (
-            <Button
-              variant="outline"
-              onClick={onToggleSelectionMode}
-              disabled={loading || bulkUpdating}
-              className="border-border text-muted-foreground hover:text-foreground shrink-0"
-            >
-              {selectionMode ? "Cancel Selection" : "Select Jobs"}
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {canSelectJobs && selectionMode && jobs.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-[1.3rem] border border-border/85 bg-secondary/48 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] dark:bg-secondary/36">
-          <p className="rounded-full border border-border/80 bg-card/86 px-3 py-1.5 text-sm font-medium text-foreground/88">
-            {selectedJobIds.length} selected
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onSelectVisibleJobs}
-            disabled={bulkUpdating}
-            className="border-border text-muted-foreground hover:text-foreground"
-          >
-            {allVisibleSelected ? "Unselect Visible" : "Select Visible"}
-          </Button>
-          {selectedJobIds.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClearSelection}
-              disabled={bulkUpdating}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Clear
-            </Button>
-          )}
-          {selectedActiveIds.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBulkPause(selectedActiveIds)}
-              disabled={bulkUpdating}
-              className="border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"
-            >
-              Pause Selected ({selectedActiveIds.length})
-            </Button>
-          )}
-          {selectedPausedIds.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBulkResume(selectedPausedIds)}
-              disabled={bulkUpdating}
-              className="border-green-500/30 text-green-500 hover:bg-green-500/10"
-            >
-              Resume Selected ({selectedPausedIds.length})
-            </Button>
-          )}
-          {selectedJobIds.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onBulkRemove(selectedJobIds)}
-              disabled={bulkUpdating}
-              className="border-red-500/30 text-red-500 hover:bg-red-500/10"
-            >
-              Remove Selected ({selectedJobIds.length})
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* List */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        </div>
-      ) : jobs.length === 0 ? (
-        <Card className="border-dashed border-border/85 bg-card/88">
-          <CardContent className="py-14 text-center space-y-3">
-            <ArchiveX className="h-10 w-10 text-muted-foreground mx-auto" />
-            <p className="font-medium text-foreground">{emptyMessages[tab].title}</p>
-            <p className="text-sm text-muted-foreground">{emptyMessages[tab].sub}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {jobs.map(job => (
-            <JobCard
-              key={job.id}
-              job={job}
-              tab={tab}
-              selectionMode={selectionMode}
-              selected={selectedJobIds.includes(job.id)}
-              onOpenRanking={onOpenRanking}
-              onStatusChange={onStatusChange}
-              onEdit={onEdit}
-              onRemove={onRemove}
-              onView={onView}
-              onToggleSelect={onToggleSelectJob}
-              updating={updating}
-              bulkUpdating={bulkUpdating}
-              showNewApplicationDot={unseenApplicationJobIds.has(job.id)}
-            />
-          ))}
-          <div ref={loadMoreRef} className="h-2 w-full" />
-          {loadingMore && (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          )}
-          {!loadingMore && hasMore && (
-            <div className="flex justify-center">
-              <Button variant="outline" onClick={onLoadMore} className="border-border text-muted-foreground hover:text-foreground">
-                Load More
-              </Button>
-            </div>
-          )}
-          <p className="text-center text-xs text-muted-foreground">
-            Showing {jobs.length} of {total}
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Main component ────────────────────────────────────────────
 export function PostJobSection() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const isMobile = useIsMobile()
   const tabFromUrl = searchParams.get("hrJobTab")
   const postFocus = searchParams.get("postFocus")
   const postJump = searchParams.get("postJump")
@@ -975,6 +145,12 @@ export function PostJobSection() {
   const [pendingAction, setPendingAction] = useState<PendingJobAction | null>(null)
   const [bulkUpdating, setBulkUpdating] = useState(false)
   const [unseenApplicationJobIds, setUnseenApplicationJobIds] = useState<Set<string>>(new Set())
+  const [desktopAnalytics, setDesktopAnalytics] = useState({
+    totalApplications: 0,
+    shortlisted: 0,
+    shortlistedRoles: 0,
+    newApplicationsToday: 0,
+  })
   const formSectionRef = useRef<HTMLDivElement | null>(null)
   const jobListSectionRef = useRef<HTMLDivElement | null>(null)
 
@@ -1079,18 +255,42 @@ export function PostJobSection() {
 
     const loadApplicationIndicators = async () => {
       try {
-        const stats = await jobService.getJobAnalytics({ force: true }) as Array<{ job_id: string; total_applications: number }>
+        const [stats, dailyApplications] = await Promise.all([
+          jobService.getJobAnalytics({ force: true }) as Promise<Array<{
+            job_id: string
+            total_applications: number
+            shortlisted?: number
+          }>>,
+          jobService.getDailyApplications({ force: true }) as Promise<Array<{
+            date: string
+            applications: number
+          }>>,
+        ])
         if (!active) return
+        const safeStats = Array.isArray(stats) ? stats : []
+        const today = new Date().toISOString().slice(0, 10)
         const unseenIds = syncJobApplicationIndicators(
           "hr",
-          Array.isArray(stats)
-            ? stats.map((job) => ({ jobId: job.job_id, totalApplications: job.total_applications ?? 0 }))
-            : [],
+          safeStats.map((job) => ({ jobId: job.job_id, totalApplications: job.total_applications ?? 0 })),
         )
         setUnseenApplicationJobIds(new Set(unseenIds))
+        setDesktopAnalytics({
+          totalApplications: safeStats.reduce((sum, job) => sum + (job.total_applications ?? 0), 0),
+          shortlisted: safeStats.reduce((sum, job) => sum + (job.shortlisted ?? 0), 0),
+          shortlistedRoles: safeStats.filter((job) => (job.shortlisted ?? 0) > 0).length,
+          newApplicationsToday: Array.isArray(dailyApplications)
+            ? dailyApplications.find((entry) => entry.date === today)?.applications ?? 0
+            : 0,
+        })
       } catch {
         if (active) {
           setUnseenApplicationJobIds(new Set())
+          setDesktopAnalytics({
+            totalApplications: 0,
+            shortlisted: 0,
+            shortlistedRoles: 0,
+            newApplicationsToday: 0,
+          })
         }
       }
     }
@@ -1457,6 +657,13 @@ export function PostJobSection() {
     { id: "past",     label: "Past Jobs",     icon: ArchiveX,     count: counts.past    },
   ]
 
+  const swipeHandlers = useSwipeTabNavigation<TabType>({
+    tabs: tabs.map((tab) => tab.id),
+    activeTab,
+    onChange: (tab) => handleTabChange(tab, tab === "post" ? "form" : "list"),
+    enabled: isMobile,
+  })
+
   const tabColors: Record<TabType, string> = {
     post    : "text-primary border-primary bg-primary/10",
     posted  : "text-blue-400 border-blue-400/40 bg-blue-400/10",
@@ -1478,88 +685,168 @@ export function PostJobSection() {
     const sourceJobs = activeTab === tabId ? jobs : recentJobs
     return sourceJobs.some((job) => job.status === desiredStatus && unseenApplicationJobIds.has(job.id))
   }
+  const recentActiveThisWeek = useMemo(
+    () => recentJobs.filter((job) => job.status === "active" && Date.now() - new Date(job.created_at).getTime() <= 7 * 24 * 60 * 60 * 1000).length,
+    [recentJobs],
+  )
+  const desktopOverviewCards = [
+    {
+      label: "Active Jobs",
+      value: counts.active,
+      hint: `+${recentActiveThisWeek} this week`,
+    },
+    {
+      label: "Total Applications",
+      value: desktopAnalytics.totalApplications,
+      hint: `+${desktopAnalytics.newApplicationsToday} new today`,
+    },
+    {
+      label: "Shortlisted",
+      value: desktopAnalytics.shortlisted,
+      hint: `across ${desktopAnalytics.shortlistedRoles} roles`,
+    },
+  ] as const
 
   return (
-    <div className="space-y-6">
-      <Card className="border-border/90 bg-card/94 shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:bg-card/88">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Hiring Command Center</p>
-              <h2 className="mt-2 text-3xl font-semibold tracking-[-0.04em] text-foreground">Manage every job lifecycle from one workspace</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Post new openings, keep active listings healthy, pause roles safely, and maintain a clean record of past jobs without leaving this screen.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-2xl border border-border/85 bg-secondary/56 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Total Jobs</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{counts.total}</p>
+    <div className="space-y-4 sm:space-y-6" {...swipeHandlers} style={isMobile ? { touchAction: "pan-y" } : undefined}>
+      {isMobile ? (
+        <Card className="border-border/90 bg-card/94 shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:bg-card/88">
+          <CardContent className="p-4 sm:p-6">
+            <div className="space-y-3.5">
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Hiring dashboard</p>
+                <h2 className="text-lg font-semibold tracking-[-0.04em] text-foreground">Track hiring performance at a glance</h2>
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  Review live roles, monitor application flow, and keep shortlisted momentum visible from one compact view.
+                </p>
               </div>
-              <div className="rounded-2xl border border-border/85 bg-secondary/56 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Active</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{counts.active}</p>
-              </div>
-              <div className="rounded-2xl border border-border/85 bg-secondary/56 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Paused</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{counts.inactive}</p>
-              </div>
-              <div className="rounded-2xl border border-border/85 bg-secondary/56 px-4 py-3">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Past</p>
-                <p className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-foreground">{counts.past}</p>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* ── Tab buttons ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3">
-        {tabs.map(tab => {
-          const Icon     = tab.icon
-          const isActive = activeTab === tab.id
-          return (
-            <TooltipWrapper key={tab.id} content={tabDescriptions[tab.id]}>
-              <Card
-                onClick={() => handleTabChange(tab.id, tab.id === "post" ? "form" : "list")}
-                className={`
-                  cursor-pointer border-border/85 transition-all hover:-translate-y-0.5 hover:border-primary/24
-                  ${isActive
-                    ? tabColors[tab.id]
-                    : "bg-card/92 text-muted-foreground hover:text-foreground"
-                  }
-                `}
-              >
+              <div className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {desktopOverviewCards.map((card) => (
+                  <div
+                    key={card.label}
+                    className="min-w-[220px] snap-start rounded-[1.25rem] border border-border/80 bg-card/98 px-4 py-3.5 shadow-[0_8px_20px_rgba(15,23,42,0.05)]"
+                  >
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-foreground/78">
+                      {card.label}
+                    </p>
+                    <p className="mt-2.5 text-[30px] font-bold leading-none tracking-[-0.05em] text-foreground tabular-nums">
+                      {card.value}
+                    </p>
+                    <p className="mt-2 text-[12px] font-medium leading-relaxed text-muted-foreground">
+                      {card.hint}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                <span className="rounded-full border border-border/80 bg-secondary/60 px-3 py-1.5 font-medium text-foreground/88">
+                  {counts.total} total jobs
+                </span>
+                <span className="rounded-full border border-border/80 bg-secondary/60 px-3 py-1.5">
+                  Swipe cards to review more
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+          {desktopOverviewCards.map((card) => {
+            return (
+              <Card key={card.label} className="border-border/70 bg-card/96 py-0 shadow-[0_10px_24px_rgba(15,23,42,0.05)] dark:bg-card/90">
                 <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-3">
-                  <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border ${isActive ? "border-primary/25 bg-primary/18" : "border-border/70 bg-secondary/68"}`}>
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  {tab.count !== null ? (
-                    <div className={`rounded-xl border px-3 py-2 text-right ${isActive ? "border-current/20 bg-white/14 dark:bg-black/10" : "border-border/75 bg-secondary/55 text-foreground"}`}>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Count</p>
-                        <p className="mt-1 text-xl font-semibold tracking-[-0.03em]">{tab.count}</p>
-                      </div>
-                    ) : (
-                      <Badge variant="secondary" className="border border-primary/20 bg-primary/10 text-primary">
-                        Create
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex items-center gap-2">
-                      {hasIndicatorForTab(tab.id) && (
-                        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
-                      )}
-                      <p className={`text-sm font-semibold tracking-[-0.01em] ${isActive ? "text-current" : "text-foreground"}`}>{tab.label}</p>
-                    </div>
-                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/78">
+                    {card.label}
+                  </p>
+                  <p className="mt-3 text-4xl font-bold tracking-[-0.05em] text-foreground tabular-nums">
+                    {card.value}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-muted-foreground">
+                    {card.hint}
+                  </p>
                 </CardContent>
               </Card>
-            </TooltipWrapper>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Tab buttons ── */}
+      {isMobile ? (
+        <div className="grid grid-cols-5 gap-2">
+          {tabs.map(tab => {
+            const Icon = tab.icon
+            const isActive = activeTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id, tab.id === "post" ? "form" : "list")}
+                aria-label={tab.label}
+                className={`rounded-2xl border px-2 py-2.5 text-center transition-all ${isActive ? tabColors[tab.id] : "border-border/70 bg-card/92 text-muted-foreground"}`}
+              >
+                <div className="relative mx-auto flex h-9 w-9 items-center justify-center rounded-xl bg-secondary/65">
+                  {hasIndicatorForTab(tab.id) && (
+                    <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
+                  )}
+                  <Icon className="h-4 w-4" />
+                </div>
+                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.08em]">
+                  {tab.id === "post" ? "Post" : tab.id === "posted" ? "All" : tab.id === "active" ? "Live" : tab.id === "inactive" ? "Paused" : "Past"}
+                </p>
+                <p className="mt-0.5 text-[11px] font-bold leading-none tabular-nums">{tab.count ?? "+"}</p>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
+        <Card className="border-border/70 bg-card/96 py-0 shadow-[0_10px_24px_rgba(15,23,42,0.05)] dark:bg-card/90">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex flex-wrap items-center gap-2">
+                {tabs.map(tab => {
+                  const Icon = tab.icon
+                  const isActive = activeTab === tab.id
+                  return (
+                    <TooltipWrapper key={tab.id} content={tabDescriptions[tab.id]}>
+                      <button
+                        type="button"
+                        onClick={() => handleTabChange(tab.id, tab.id === "post" ? "form" : "list")}
+                        className={`inline-flex items-center gap-2 rounded-2xl border px-3.5 py-2 text-sm font-semibold transition-all ${
+                          isActive
+                            ? "border-primary/30 bg-primary text-primary-foreground shadow-[0_6px_16px_color-mix(in_oklch,var(--primary)_20%,transparent)]"
+                            : "border-border/70 bg-secondary/60 text-muted-foreground hover:border-primary/20 hover:text-foreground"
+                        }`}
+                      >
+                        <span className="relative flex h-7 w-7 items-center justify-center rounded-xl bg-black/10 text-current dark:bg-white/10">
+                          {hasIndicatorForTab(tab.id) && (
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
+                          )}
+                          <Icon className="h-3.5 w-3.5" />
+                        </span>
+                        <span>{tab.id === "post" ? "Post" : tab.label.replace(" Jobs", "")}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ${
+                          isActive ? "bg-black/10 text-primary-foreground dark:bg-white/12" : "bg-background/90 text-foreground"
+                        }`}>
+                          {tab.count ?? "+"}
+                        </span>
+                      </button>
+                    </TooltipWrapper>
+                  )
+                })}
+              </div>
+
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="rounded-2xl border border-border/70 bg-secondary/60 px-3 py-2 font-medium text-foreground/88">
+                  {counts.total} total jobs
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Post Job tab ── */}
       {activeTab === "post" && (
@@ -1944,61 +1231,82 @@ export function PostJobSection() {
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No jobs posted yet.
                   </p>
-                ) : recentJobs.map(job => (
-                  <div
-                    key={job.id}
-                    className={cn(
-                      "rounded-[1.25rem] border border-border/80 bg-secondary/40 p-4 transition-all",
-                      canOpenRankingForJob(job)
-                        ? "cursor-pointer hover:border-primary/20 hover:bg-secondary/55"
-                        : "cursor-default",
-                    )}
-                    onClick={() => {
-                      if (!canOpenRankingForJob(job)) return
-                      handleOpenRanking(job)
-                    }}
-                    onKeyDown={(event) => {
-                      if (!canOpenRankingForJob(job)) return
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault()
+                ) : recentJobs.map((job) => {
+                  const jobVisual = getJobVisual(job)
+                  const JobTypeIcon = jobVisual.icon
+
+                  return (
+                    <div
+                      key={job.id}
+                      className={cn(
+                        "rounded-[1.15rem] border border-border/78 bg-card/96 p-3 transition-all",
+                        canOpenRankingForJob(job)
+                          ? "cursor-pointer hover:border-primary/20 hover:bg-card"
+                          : "cursor-default",
+                      )}
+                      onClick={() => {
+                        if (!canOpenRankingForJob(job)) return
                         handleOpenRanking(job)
-                      }
-                    }}
-                    role={canOpenRankingForJob(job) ? "button" : undefined}
-                    tabIndex={canOpenRankingForJob(job) ? 0 : undefined}
-                    aria-label={canOpenRankingForJob(job) ? `Open ranking for ${job.title}` : undefined}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                      }}
+                      onKeyDown={(event) => {
+                        if (!canOpenRankingForJob(job)) return
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault()
+                          handleOpenRanking(job)
+                        }
+                      }}
+                      role={canOpenRankingForJob(job) ? "button" : undefined}
+                      tabIndex={canOpenRankingForJob(job) ? 0 : undefined}
+                      aria-label={canOpenRankingForJob(job) ? `Open ranking for ${job.title}` : undefined}
+                    >
+                      <div className="flex items-start gap-2.5">
+                        <div className={`relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ${jobVisual.surfaceClassName}`}>
                           {unseenApplicationJobIds.has(job.id) && (
-                            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
+                            <span className="absolute -right-0.5 -top-0.5 inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
                           )}
-                          <p className="font-medium text-foreground text-sm truncate">{job.title}</p>
+                          <JobTypeIcon className="h-3.5 w-3.5" />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Posted {new Date(job.created_at).toLocaleDateString()}
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <MetaPill icon={Briefcase} value={job.employment_type} />
-                          <MetaPill icon={MapPin} value={job.location} />
+                        <div className="min-w-0 flex-1 space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-medium text-foreground text-[13.5px] truncate">{job.title}</p>
+                            <StatusBadge status={job.status as JobStatus} />
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            <MetaPill icon={Building2} value={job.department} />
+                            <MetaPill icon={JobTypeIcon} value={job.employment_type} iconClassName={jobVisual.iconClassName} />
+                            <MetaPill icon={MapPin} value={job.location} />
+                            <MetaPill icon={Clock3} value={new Date(job.created_at).toLocaleDateString()} className="text-muted-foreground" />
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {job.required_skills?.slice(0, 2).map((skill) => (
+                              <Badge key={skill} variant="secondary" className="border border-border/65 bg-background/82 px-2.5 py-1 text-[10.5px] font-semibold text-foreground/84">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {(job.required_skills?.length || 0) > 2 && (
+                              <Badge variant="secondary" className="border border-border/65 bg-background/82 px-2.5 py-1 text-[10.5px] font-semibold text-muted-foreground">
+                                +{job.required_skills.length - 2}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center rounded-[1rem] border border-border/70 bg-secondary/30 p-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              setViewJob(job)
+                            }}
+                            className="h-8 rounded-xl border-border bg-background/84 text-muted-foreground hover:text-foreground text-xs"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </div>
-                      <StatusBadge status={job.status as JobStatus} />
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setViewJob(job)
-                      }}
-                      className="mt-2 border-border text-muted-foreground hover:text-foreground text-xs h-7"
-                    >
-                      <Eye className="h-3 w-3 mr-1" /> View Details
-                    </Button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

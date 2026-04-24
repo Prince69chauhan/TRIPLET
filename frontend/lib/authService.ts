@@ -1,6 +1,6 @@
 import api from "./api"
 import { clearRequestCache } from "./request-cache"
-import { clearAuthSession, getSessionValue, removeSessionValue, setSessionValue } from "./browser-session"
+import { clearAuthSession, getSessionValue, setSessionValue } from "./browser-session"
 
 type AuthTokens = {
   access_token: string
@@ -13,6 +13,15 @@ type LoginStartResponse = {
   message: string
   email: string
   expires_in: number
+}
+
+type RegisterStartResponse = {
+  id: string
+  email: string
+  role: string
+  message: string
+  verification_required: boolean
+  expires_in: number | null
 }
 
 type MeResponse = {
@@ -40,9 +49,9 @@ export const authService = {
   }) {
     if (typeof window !== "undefined") {
       clearRequestCache()
-      removeSessionValue("profile_complete")
+      clearAuthSession()
     }
-    return api.post("/api/auth/register/candidate", data)
+    return api.post<RegisterStartResponse>("/api/auth/register/candidate", data)
   },
 
   async registerEmployer(data: {
@@ -54,9 +63,9 @@ export const authService = {
   }) {
     if (typeof window !== "undefined") {
       clearRequestCache()
-      removeSessionValue("profile_complete")
+      clearAuthSession()
     }
-    return api.post("/api/auth/register/employer", data)
+    return api.post<RegisterStartResponse>("/api/auth/register/employer", data)
   },
 
   async login(data: { email: string; password: string }) {
@@ -71,6 +80,19 @@ export const authService = {
 
   async resendOtp(email: string) {
     return api.post<{ message: string; expires_in: number }>("/api/auth/resend-otp", { email })
+  },
+
+  async verifySignup(email: string, otp: string) {
+    const response = await api.post<AuthTokens>("/api/auth/verify-email", { email, otp })
+    persistSession(response)
+    return response
+  },
+
+  async resendSignupOtp(email: string) {
+    return api.post<{ message: string; expires_in: number }>(
+      "/api/auth/resend-verification",
+      { email },
+    )
   },
 
   async forgotPassword(email: string) {

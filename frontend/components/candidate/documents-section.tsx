@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -30,6 +31,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { documentService } from "@/lib/documentService"
 import {
   CheckSquare,
@@ -47,6 +49,7 @@ import {
   FilePlus,
   Search,
   XCircle,
+  SlidersHorizontal,
 } from "lucide-react"
 
 interface Document {
@@ -87,6 +90,7 @@ function canPreviewDocument(mimeType: string): boolean {
 }
 
 export function DocumentsSection() {
+  const isMobile = useIsMobile()
   const [docs, setDocs] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -103,6 +107,7 @@ export function DocumentsSection() {
   const [sortBy, setSortBy] = useState("newest")
   const [typeFilter, setTypeFilter] = useState("all")
   const [selectionMode, setSelectionMode] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([])
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[]>([])
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false)
@@ -360,22 +365,22 @@ export function DocumentsSection() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
         <Card className="bg-card border-border">
-          <CardContent className="p-6 flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-primary" />
+          <CardContent className="flex items-center gap-3 p-4 sm:p-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 sm:h-12 sm:w-12">
+              <FileText className="h-5 w-5 text-primary sm:h-6 sm:w-6" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{docs.length}</p>
-              <p className="text-sm text-muted-foreground">Documents Uploaded</p>
+              <p className="text-xl font-bold text-foreground sm:text-2xl">{docs.length}</p>
+              <p className="text-xs text-muted-foreground sm:text-sm">Documents Uploaded</p>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border">
-          <CardContent className="p-6 flex items-center justify-center">
+          <CardContent className="flex items-center justify-center p-4 sm:p-6">
             <input
               ref={fileInputRef}
               type="file"
@@ -392,7 +397,7 @@ export function DocumentsSection() {
                 fileInputRef.current?.click()
               }}
               disabled={uploading}
-              className="h-12 w-full border border-primary/35 bg-primary text-base text-primary-foreground"
+              className="h-10 w-full border border-primary/35 bg-primary text-sm text-primary-foreground sm:h-12 sm:text-base"
             >
               {uploading ? (
                 <>
@@ -439,12 +444,12 @@ export function DocumentsSection() {
         </div>
       )}
 
-      <Card className="bg-card border-border">
-        <CardContent className="p-6">
-          <div className="mb-4 space-y-4">
+      <Card className="bg-card border-border py-0">
+        <CardContent className="p-4 sm:p-6">
+          <div className="mb-4 space-y-3 sm:space-y-4">
             <div>
-              <h3 className="font-semibold text-foreground text-lg">My Documents</h3>
-              <p className="text-sm text-muted-foreground">
+              <h3 className="text-base font-semibold text-foreground sm:text-lg">My Documents</h3>
+              <p className="text-xs text-muted-foreground sm:text-sm">
                 All your uploaded documents for job applications
               </p>
             </div>
@@ -456,53 +461,107 @@ export function DocumentsSection() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search documents by name..."
-                  className="bg-input border-border pl-10 text-foreground"
+                  className="h-9 bg-input border-border pl-10 text-[13px] font-medium text-foreground"
                 />
               </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row xl:shrink-0">
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger className="w-full bg-input border-border text-foreground sm:w-[180px]">
-                    <SelectValue placeholder="Sort by" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="newest">Uploaded Date</SelectItem>
-                    <SelectItem value="oldest">Oldest First</SelectItem>
-                    <SelectItem value="name-asc">A to Z</SelectItem>
-                    <SelectItem value="name-desc">Z to A</SelectItem>
-                  </SelectContent>
-                </Select>
+              {isMobile ? (
+                <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="md:hidden">
+                  <CollapsibleTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 w-full border-border text-[13px] font-semibold text-muted-foreground hover:text-foreground">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      Filters and Actions
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-3">
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="h-9 w-full bg-input border-border text-[13px] font-medium text-foreground">
+                        <SelectValue placeholder="Sort by" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="newest">Uploaded Date</SelectItem>
+                        <SelectItem value="oldest">Oldest First</SelectItem>
+                        <SelectItem value="name-asc">A to Z</SelectItem>
+                        <SelectItem value="name-desc">Z to A</SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger className="w-full bg-input border-border text-foreground sm:w-[160px]">
-                    <SelectValue placeholder="File type" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-card border-border">
-                    <SelectItem value="all">All Files</SelectItem>
-                    <SelectItem value="pdf">PDF</SelectItem>
-                    <SelectItem value="png">PNG</SelectItem>
-                    <SelectItem value="doc">DOC</SelectItem>
-                    <SelectItem value="jpg">JPG</SelectItem>
-                  </SelectContent>
-                </Select>
+                    <Select value={typeFilter} onValueChange={setTypeFilter}>
+                      <SelectTrigger className="h-9 w-full bg-input border-border text-[13px] font-medium text-foreground">
+                        <SelectValue placeholder="File type" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="all">All Files</SelectItem>
+                        <SelectItem value="pdf">PDF</SelectItem>
+                        <SelectItem value="png">PNG</SelectItem>
+                        <SelectItem value="doc">DOC</SelectItem>
+                        <SelectItem value="jpg">JPG</SelectItem>
+                      </SelectContent>
+                    </Select>
 
-                <Button
-                  variant={selectionMode ? "default" : "outline"}
-                  onClick={() => {
-                    setSelectionMode((prev) => {
-                      if (prev) {
-                        setSelectedDocIds([])
-                      }
-                      return !prev
-                    })
-                    setActionError("")
-                  }}
-                  className={selectionMode ? "border border-primary/35 bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}
-                >
-                  <CheckSquare className="mr-2 h-4 w-4" />
-                  {selectionMode ? "Exit Select" : "Select"}
-                </Button>
-              </div>
+                    <Button
+                      variant={selectionMode ? "default" : "outline"}
+                      onClick={() => {
+                        setSelectionMode((prev) => {
+                          if (prev) {
+                            setSelectedDocIds([])
+                          }
+                          return !prev
+                        })
+                        setActionError("")
+                      }}
+                      className={selectionMode ? "w-full border border-primary/35 bg-primary text-primary-foreground" : "w-full border border-border text-muted-foreground hover:text-foreground"}
+                    >
+                      <CheckSquare className="mr-2 h-4 w-4" />
+                      {selectionMode ? "Exit Select" : "Select"}
+                    </Button>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : (
+                <div className="hidden flex-col gap-3 sm:flex-row xl:shrink-0 md:flex">
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full bg-input border-border text-foreground sm:w-[180px]">
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="newest">Uploaded Date</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                      <SelectItem value="name-asc">A to Z</SelectItem>
+                      <SelectItem value="name-desc">Z to A</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger className="w-full bg-input border-border text-foreground sm:w-[160px]">
+                      <SelectValue placeholder="File type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="all">All Files</SelectItem>
+                      <SelectItem value="pdf">PDF</SelectItem>
+                      <SelectItem value="png">PNG</SelectItem>
+                      <SelectItem value="doc">DOC</SelectItem>
+                      <SelectItem value="jpg">JPG</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  <Button
+                    variant={selectionMode ? "default" : "outline"}
+                    onClick={() => {
+                      setSelectionMode((prev) => {
+                        if (prev) {
+                          setSelectedDocIds([])
+                        }
+                        return !prev
+                      })
+                      setActionError("")
+                    }}
+                    className={selectionMode ? "border border-primary/35 bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}
+                  >
+                    <CheckSquare className="mr-2 h-4 w-4" />
+                    {selectionMode ? "Exit Select" : "Select"}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {selectionMode && (
@@ -550,12 +609,12 @@ export function DocumentsSection() {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {filteredDocs.map((doc) => (
                 <div
                   key={doc.id}
                   onClick={(event) => handleRowSelection(event, doc.id)}
-                  className={`flex items-center gap-3 rounded-lg p-4 transition-colors ${
+                  className={`flex items-start gap-3 rounded-lg p-3 transition-colors sm:items-center sm:p-4 ${
                     selectionMode
                       ? "cursor-pointer bg-secondary/30 hover:bg-secondary/50"
                       : "bg-secondary/30 hover:bg-secondary/50"
@@ -629,7 +688,7 @@ export function DocumentsSection() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1">
                     <button
                       onClick={(event) => {
                         event.stopPropagation()
@@ -700,8 +759,8 @@ export function DocumentsSection() {
       <Dialog open={Boolean(previewDoc)} onOpenChange={(open) => {
         if (!open) closePreview()
       }}>
-        <DialogContent className={`${previewExpanded ? "h-[92vh] max-w-[96vw]" : "max-w-4xl"} border-border bg-card`}>
-          <DialogHeader className="gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <DialogContent className={`${previewExpanded ? "h-[92vh] max-w-[96vw]" : "max-w-4xl"} border-border bg-card pr-14 sm:pr-16`}>
+          <DialogHeader className="gap-3 pr-1 sm:flex-row sm:items-start sm:justify-between sm:pr-10">
             <div className="space-y-1">
               <DialogTitle className="text-foreground">
                 {previewDoc?.display_name || "Document preview"}
@@ -716,7 +775,7 @@ export function DocumentsSection() {
               size="sm"
               disabled={previewLoading}
               onClick={() => setPreviewExpanded((current) => !current)}
-              className="border-border text-foreground"
+              className="w-full border-border text-foreground sm:w-auto"
             >
               {previewExpanded ? (
                 <>

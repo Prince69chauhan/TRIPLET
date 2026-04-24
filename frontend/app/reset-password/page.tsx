@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { authService } from "@/lib/authService"
+import { PasswordStrengthMeter } from "@/components/ui/password-strength"
+import { evaluatePassword } from "@/lib/password-policy"
 import { Sparkles, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react"
 
 function ResetPasswordPageContent() {
@@ -25,12 +27,14 @@ function ResetPasswordPageContent() {
     if (!token) router.replace("/")
   }, [token, router])
 
+  const strength = evaluatePassword(password)
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.")
+    if (!strength.isStrong) {
+      setError("Please choose a password that meets every requirement below.")
       return
     }
     if (password !== confirm) {
@@ -44,7 +48,13 @@ function ResetPasswordPageContent() {
       setSuccess(true)
       setTimeout(() => router.push("/"), 3000)
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Reset failed. Link may have expired.")
+      const detail = err?.response?.data?.detail
+      setError(
+        (typeof detail === "string" ? detail : null) ||
+          (Array.isArray(detail) ? detail[0]?.msg : null) ||
+          detail?.message ||
+          "Reset failed. Link may have expired.",
+      )
     } finally {
       setLoading(false)
     }
@@ -82,7 +92,7 @@ function ResetPasswordPageContent() {
                       autoComplete="new-password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
-                      placeholder="Min 8 characters"
+                      placeholder="Choose a strong password"
                       className="bg-input border-border text-foreground pr-10"
                       required
                     />
@@ -94,6 +104,7 @@ function ResetPasswordPageContent() {
                       {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <PasswordStrengthMeter value={password} />
                 </div>
 
                 <div className="space-y-2">
@@ -117,7 +128,7 @@ function ResetPasswordPageContent() {
 
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || !strength.isStrong || password !== confirm}
                   className="w-full bg-primary text-primary-foreground"
                 >
                   {loading

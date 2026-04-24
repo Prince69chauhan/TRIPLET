@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, type ReactNode } from "react"
 import { useRouter } from "next/navigation"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,16 +16,73 @@ import { profileService } from "@/lib/profileService"
 import { candidateService } from "@/lib/candidateService"
 import { removeSessionValue } from "@/lib/browser-session"
 import { cgpaToPercentage } from "@/lib/utils"
+import { useIsMobile } from "@/hooks/use-mobile"
 import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   User, Camera, Save, Upload,
   RefreshCw, AlertCircle, CheckCircle2,
   Loader2, GraduationCap, Phone, Building,
-  FileText, RotateCcw, Sparkles, X
+  FileText, RotateCcw, Sparkles, X, type LucideIcon
 } from "lucide-react"
+
+function ResponsiveSectionCard({
+  title,
+  description,
+  icon: Icon,
+  children,
+  isMobile,
+  defaultOpen = false,
+  className = "",
+  contentClassName = "",
+}: {
+  title: string
+  description?: string
+  icon: LucideIcon
+  children: ReactNode
+  isMobile: boolean
+  defaultOpen?: boolean
+  className?: string
+  contentClassName?: string
+}) {
+  if (isMobile) {
+    return (
+      <Card className={`bg-card border-border py-0 ${className}`}>
+        <Accordion type="single" collapsible defaultValue={defaultOpen ? "content" : undefined} className="w-full">
+          <AccordionItem value="content" className="border-b-0">
+            <AccordionTrigger className="px-4 py-3 hover:no-underline">
+              <div className="text-left">
+                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                  <Icon className="h-4 w-4 text-primary" />
+                  {title}
+                </div>
+                {description && <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{description}</p>}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className={`px-4 pb-4 ${contentClassName}`}>
+              {children}
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      </Card>
+    )
+  }
+
+  return (
+    <Card className={`bg-card border-border ${className}`}>
+      <CardHeader>
+        <CardTitle className="text-foreground flex items-center gap-2 text-base">
+          <Icon className="h-4 w-4 text-primary" /> {title}
+        </CardTitle>
+        {description ? <CardDescription>{description}</CardDescription> : null}
+      </CardHeader>
+      <CardContent className={contentClassName}>{children}</CardContent>
+    </Card>
+  )
+}
 
 export default function CandidateProfilePage() {
   const router = useRouter()
+  const isMobile = useIsMobile()
   const { authorized, checking } = useRoleGuard("candidate")
   const fileInputRef    = useRef<HTMLInputElement>(null)
   const resumeInputRef  = useRef<HTMLInputElement>(null)
@@ -285,14 +343,14 @@ export default function CandidateProfilePage() {
       <FloatingBackButton onClick={() => router.back()} />
 
       {/* Header */}
-      <div className="border-b border-border bg-card px-6 py-4">
+      <div className="border-b border-border bg-card px-4 py-3 sm:px-6 sm:py-4">
         <div className="pl-20 sm:pl-24">
           <h1 className="font-semibold text-foreground">My Profile</h1>
           <p className="text-xs text-muted-foreground">Manage your personal information</p>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="mx-auto max-w-3xl space-y-4 p-4 sm:space-y-6 sm:p-6">
 
         {/* Success / Error */}
         {success && (
@@ -308,9 +366,9 @@ export default function CandidateProfilePage() {
         )}
 
         {/* Avatar + account info */}
-        <Card className="bg-card border-border">
-          <CardContent className="p-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+        <Card className="bg-card border-border py-0">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-6">
               <div className="relative">
                 <Avatar className="h-24 w-24 border-2 border-border">
                   {avatarUrl
@@ -350,13 +408,13 @@ export default function CandidateProfilePage() {
         </Card>
 
         {/* Personal Info */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <User className="h-4 w-4 text-primary" /> Personal Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <ResponsiveSectionCard
+          title="Personal Information"
+          icon={User}
+          isMobile={isMobile}
+          defaultOpen
+          contentClassName="space-y-4"
+        >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TooltipWrapper content="Your full legal name as it appears on official documents.">
                 <div className="space-y-2">
@@ -401,17 +459,15 @@ export default function CandidateProfilePage() {
                 </div>
               </TooltipWrapper>
             </div>
-          </CardContent>
-        </Card>
+        </ResponsiveSectionCard>
 
         {/* Education */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <GraduationCap className="h-4 w-4 text-primary" /> Education Details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <ResponsiveSectionCard
+          title="Education Details"
+          icon={GraduationCap}
+          isMobile={isMobile}
+          contentClassName="space-y-4"
+        >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <TooltipWrapper content="Your CGPA on a 10-point scale. Used for job hard filter checks.">
                 <div className="space-y-2">
@@ -472,20 +528,16 @@ export default function CandidateProfilePage() {
                 </div>
               </TooltipWrapper>
             </div>
-          </CardContent>
-        </Card>
+        </ResponsiveSectionCard>
 
         {/* Resume management */}
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <FileText className="h-4 w-4 text-primary" /> Resume
-            </CardTitle>
-            <CardDescription>
-              Re-uploading will delete your current resume and re-extract your skills.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <ResponsiveSectionCard
+          title="Resume"
+          description="Re-uploading will delete your current resume and re-extract your skills."
+          icon={FileText}
+          isMobile={isMobile}
+          contentClassName="space-y-4"
+        >
             {resumeSuccess && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
                 <CheckCircle2 className="h-4 w-4" /> {resumeSuccess}
@@ -504,19 +556,15 @@ export default function CandidateProfilePage() {
             <p className="text-xs text-muted-foreground">
               Supports PDF, DOCX, JPG, PNG · Max 5MB · Previous resume will be automatically deleted
             </p>
-          </CardContent>
-        </Card>
+        </ResponsiveSectionCard>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-foreground flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4 text-primary" /> Extracted Skills
-            </CardTitle>
-            <CardDescription>
-              These come from your resume. You can remove skills, or add only skills that are actually present in your resume.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <ResponsiveSectionCard
+          title="Extracted Skills"
+          description="These come from your resume. You can remove skills, or add only skills that are actually present in your resume."
+          icon={Sparkles}
+          isMobile={isMobile}
+          contentClassName="space-y-4"
+        >
             {skillsSuccess && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
                 <CheckCircle2 className="h-4 w-4" /> {skillsSuccess}
@@ -577,8 +625,7 @@ export default function CandidateProfilePage() {
                 : <><Save className="h-4 w-4 mr-2" /> Save Skills</>
               }
             </Button>
-          </CardContent>
-        </Card>
+        </ResponsiveSectionCard>
 
         {/* Redo setup */}
         <Card className="bg-card border-border border-l-4 border-l-yellow-500">

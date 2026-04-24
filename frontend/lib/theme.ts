@@ -4,7 +4,7 @@ export const LEGACY_THEME_KEY = "triplet_theme"
 
 export function themeKeyForPath(pathname: string | null | undefined): string {
   if (pathname?.startsWith("/hr")) return "triplet_theme_hr"
-  if (pathname?.startsWith("/candidate")) return "triplet_theme_candidate"
+  if (pathname?.startsWith("/candidate") || pathname?.startsWith("/setup")) return "triplet_theme_candidate"
   return LEGACY_THEME_KEY
 }
 

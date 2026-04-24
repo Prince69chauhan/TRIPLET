@@ -24,8 +24,16 @@ def send_email_sync(
     Returns True on success, False on failure.
     """
     try:
+        # Gmail is more reliable when the authenticated sender and the
+        # envelope sender match. If a custom reply address is configured,
+        # keep it as Reply-To instead of spoofing the From address.
+        smtp_sender = settings.SMTP_USER
+        reply_to = settings.EMAIL_FROM
+
         msg = MIMEMultipart()
-        msg["From"]    = f"{settings.EMAIL_FROM_NAME} <{settings.EMAIL_FROM}>"
+        msg["From"]    = f"{settings.EMAIL_FROM_NAME} <{smtp_sender}>"
+        if reply_to and reply_to.lower() != smtp_sender.lower():
+            msg["Reply-To"] = reply_to
         msg["To"]      = to_email
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
@@ -34,7 +42,7 @@ def send_email_sync(
             server.ehlo()
             server.starttls()
             server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
-            server.sendmail(settings.EMAIL_FROM, to_email, msg.as_string())
+            server.sendmail(smtp_sender, to_email, msg.as_string())
 
         logger.info(f"Email sent to {to_email} — {subject}")
         return True

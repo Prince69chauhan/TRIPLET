@@ -19,12 +19,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
   Sparkles,
   LogOut,
   Settings,
   User,
   Menu,
   X,
+  ChevronRight,
   Moon,
   Sun,
   type LucideIcon,
@@ -136,18 +147,36 @@ export function DashboardLayout({
     }
   }, [])
 
-  const handleLogout = async () => {
-    await authService.logout()
-    router.push("/")
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
+
+  const requestLogout = () => {
+    // Defer one tick so a DropdownMenu item that triggered us finishes
+    // unmounting before Radix AlertDialog takes focus. Without this the
+    // dialog can briefly appear behind a lingering pointer-events lock.
+    setTimeout(() => setLogoutConfirmOpen(true), 0)
+  }
+
+  const confirmLogout = async () => {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    try {
+      await authService.logout()
+      router.push("/")
+    } finally {
+      setIsSigningOut(false)
+      setLogoutConfirmOpen(false)
+    }
   }
 
   const initials = userName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()
-  const currentNavLabel = navItems.find(item => item.id === activeSection)?.label
+  const activeNavItem = navItems.find(item => item.id === activeSection)
+  const currentNavLabel = activeNavItem?.label
 
   return (
     <div className="relative min-h-screen bg-background">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-border/50 bg-sidebar/95 px-4 backdrop-blur-xl">
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-sidebar-border/70 bg-sidebar/[0.98] px-4 backdrop-blur-xl">
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -179,7 +208,7 @@ export function DashboardLayout({
           <UserMenu
             userName={userName}
             userEmail={userEmail}
-            onLogout={handleLogout}
+            onLogout={requestLogout}
             role={role}
             avatarUrl={avatarUrl}
           />
@@ -189,14 +218,14 @@ export function DashboardLayout({
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 z-40 h-full w-[272px] border-r border-sidebar-border/60 bg-sidebar backdrop-blur-xl
+          fixed top-0 left-0 z-40 h-full w-[268px] border-r border-sidebar-border/70 bg-sidebar backdrop-blur-xl
           transform transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
           lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         <div className="flex h-full flex-col">
           {/* Logo */}
-          <div className="flex h-16 items-center gap-3 border-b border-sidebar-border/50 px-5">
+          <div className="flex h-[62px] items-center gap-3 border-b border-sidebar-border/60 px-5">
             <Link href={homePath} className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-primary shadow-[0_2px_10px_color-mix(in_oklch,var(--primary)_32%,transparent)]">
                 <Sparkles className="h-4 w-4 text-primary-foreground" />
@@ -211,8 +240,9 @@ export function DashboardLayout({
           </div>
 
           {/* Section Label */}
-          <div className="px-5 pt-4 pb-1.5">
-            <p className="text-[9.5px] font-semibold uppercase tracking-[0.18em] text-muted-foreground/55">
+          <div className="px-4 pt-4 pb-2">
+            <p className="flex items-center gap-2 rounded-lg bg-primary/[0.08] px-3 py-2 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-primary dark:bg-primary/[0.12]">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
               {role === "hr" ? "Workspace" : "Menu"}
             </p>
           </div>
@@ -231,38 +261,42 @@ export function DashboardLayout({
                     setSidebarOpen(false)
                   }}
                   className={`
-                    w-full flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left
-                    transition-all duration-150
+                    group relative w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-left
+                    transition-all duration-200
                     ${isActive
-                      ? "bg-primary text-primary-foreground shadow-[0_2px_12px_color-mix(in_oklch,var(--primary)_26%,transparent)]"
-                      : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                      ? "bg-primary/[0.09] text-primary dark:bg-primary/[0.14]"
+                      : "text-sidebar-foreground/65 hover:bg-sidebar-accent/70 hover:text-sidebar-foreground"
                     }
                   `}
                 >
-                  <Icon className="h-[17px] w-[17px] shrink-0" />
-                  <span className="text-[13.5px] font-medium tracking-[-0.01em]">{item.label}</span>
-                  {hasIndicator && (
-                    <span
-                      className={`ml-auto inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-white/70" : "bg-emerald-500"}`}
-                    />
+                  {isActive && (
+                    <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary" />
                   )}
+                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? "text-primary" : "text-sidebar-foreground/50 group-hover:text-sidebar-foreground/80"}`} />
+                  <span className="text-[13.5px] font-semibold tracking-[-0.01em]">{item.label}</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    {hasIndicator && (
+                      <span className="inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                    )}
+                    {isActive && <ChevronRight className="h-3.5 w-3.5 opacity-60" />}
+                  </div>
                 </button>
               )
             })}
           </nav>
 
           {/* User Section */}
-          <div className="border-t border-sidebar-border/50 p-3 space-y-1">
-            <div className="flex items-center gap-2.5 rounded-[10px] px-3 py-2.5">
-              <Avatar className="h-7 w-7 shrink-0 border border-border/60">
+          <div className="border-t border-sidebar-border/60 p-3 space-y-1">
+            <div className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors hover:bg-sidebar-accent/60">
+              <Avatar className="h-8 w-8 shrink-0 border border-border/60">
                 {avatarUrl ? <AvatarImage src={avatarUrl} alt={userName} /> : null}
-                <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[12.5px] font-semibold text-sidebar-foreground">{userName}</p>
-                <p className="truncate text-[10.5px] text-muted-foreground/70">{userEmail}</p>
+                <p className="truncate text-[13px] font-semibold text-sidebar-foreground">{userName}</p>
+                <p className="truncate text-[11px] text-muted-foreground/70">{userEmail}</p>
               </div>
               <button
                 onClick={toggleTheme}
@@ -275,7 +309,7 @@ export function DashboardLayout({
             <Button
               variant="ghost"
               className="w-full justify-start gap-2.5 h-8 px-3 rounded-[10px] text-[12.5px] text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-              onClick={handleLogout}
+              onClick={requestLogout}
             >
               <LogOut className="h-3.5 w-3.5" />
               Sign out
@@ -293,9 +327,9 @@ export function DashboardLayout({
       )}
 
       {/* Main Content */}
-      <main className="lg:ml-[272px] pt-14 lg:pt-0 min-h-screen">
+      <main className="lg:ml-[268px] pt-14 lg:pt-0 min-h-screen">
         {/* Desktop Header */}
-        <header className="sticky top-0 z-30 hidden h-14 items-center justify-between border-b border-border/50 bg-sidebar/95 px-6 backdrop-blur-xl lg:flex">
+        <header className="sticky top-0 z-30 hidden h-[62px] items-center justify-between border-b border-border/50 bg-background/90 px-6 backdrop-blur-xl lg:flex">
           <div className="flex items-center gap-3">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
               {(() => {
@@ -318,7 +352,7 @@ export function DashboardLayout({
             <UserMenu
               userName={userName}
               userEmail={userEmail}
-              onLogout={handleLogout}
+              onLogout={requestLogout}
               role={role}
               avatarUrl={avatarUrl}
             />
@@ -326,10 +360,39 @@ export function DashboardLayout({
         </header>
 
         {/* Content */}
-        <div className="p-5 lg:p-6">
+        <div className="p-4 lg:p-5">
           <div className="mx-auto w-full max-w-[1520px]">{children}</div>
         </div>
       </main>
+
+      <AlertDialog
+        open={logoutConfirmOpen}
+        onOpenChange={(open) => {
+          if (!isSigningOut) setLogoutConfirmOpen(open)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out of Triplet?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You&apos;ll need to sign in again to access your {role === "hr" ? "hiring" : "candidate"} dashboard.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSigningOut}>Stay signed in</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                void confirmLogout()
+              }}
+              disabled={isSigningOut}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isSigningOut ? "Signing out..." : "Sign out"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
