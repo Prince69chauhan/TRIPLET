@@ -1,0 +1,98 @@
+# Production overrides for a single-VM deployment (Oracle Cloud Always Free, etc.)
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# What changes vs. docker-compose.yml:
+#   - Backend: no --reload, no source-code bind mount (code baked into the image)
+#   - db / redis / minio: no host port publication (internal-only, accessed via docker network)
+#   - Flower: disabled (dev-only task monitor)
+#   - Caddy: added, publishes :80 + :443 as the single public entry point with auto-HTTPS
+#   - Frontend/backend: no longer publish ports directly — Caddy fronts them
+
+x-backend-prod: &backend-prod
+  build:
+    context: ./backend
+    dockerfile: Dockerfile
+  image: triplet_backend:latest
+  env_file: .env
+  restart: unless-stopped
+  volumes:
+    - backend_keys:/app/keys
+
+services:
+
+  db:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  backend:
+    <<: *backend-prod
+    container_name: triplet_backend
+    ports: !reset []
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+
+  celery_worker:
+    <<: *backend-prod
+    container_name: triplet_celery_worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app worker --loglevel=info --concurrency=2 -Q scoring,integrity,notifications
+
+  celery_beat:
+    <<: *backend-prod
+    container_name: triplet_celery_beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: celery -A app.workers.celery_app beat --loglevel=info --scheduler celery.beat:PersistentScheduler
+
+  frontend:
+    ports: !reset []
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+      NODE_ENV: production
+
+  flower:
+    profiles: ["disabled"]
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: triplet_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    environment:
+      DOMAIN: ${DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data        # Let's Encrypt certs persist here
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_started
+      frontend:
+        condition: service_started
+
+volumes:
+  backend_keys:
+  caddy_data:
+  caddy_config:

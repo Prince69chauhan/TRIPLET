@@ -1,0 +1,43 @@
+# Caddy v2 — auto-HTTPS reverse proxy for Triplet
+# $DOMAIN is supplied via the caddy container's environment (from .env).
+# Caddy will request a Let's Encrypt certificate on first start and renew it automatically.
+
+{
+	# ACME account email — lets Let's Encrypt notify you about expiry / issues.
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Uploads (resumes up to 25 MB)
+	request_body {
+		max_size 25MB
+	}
+
+	# FastAPI — /api/* and WebSocket at /api/messages/ws/*
+	handle /api/* {
+		reverse_proxy backend:8000 {
+			transport http {
+				read_timeout 300s
+				write_timeout 300s
+			}
+			header_up X-Real-IP         {remote_host}
+			header_up X-Forwarded-For   {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# FastAPI docs (remove these two lines to hide Swagger in prod)
+	handle /docs         { reverse_proxy backend:8000 }
+	handle /openapi.json { reverse_proxy backend:8000 }
+
+	# Everything else → Next.js
+	handle {
+		reverse_proxy frontend:3000 {
+			header_up X-Real-IP         {remote_host}
+			header_up X-Forwarded-For   {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+}
