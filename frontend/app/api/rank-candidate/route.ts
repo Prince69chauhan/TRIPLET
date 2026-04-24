@@ -31,55 +31,6 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // ============================================
-    // OPTION 1: Local Python Service
-    // ============================================
-    // Uncomment this if you have a Python backend
-    /*
-    const pythonServiceUrl = process.env.PYTHON_RANKING_SERVICE_URL || "http://localhost:5000"
-    
-    const response = await fetch(`${pythonServiceUrl}/api/rank-candidate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ candidate, jobRequirements }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Python service error: ${response.statusText}`)
-    }
-
-    const rankingResult = await response.json()
-    return NextResponse.json(rankingResult)
-    */
-
-    // ============================================
-    // OPTION 2: External API (e.g., HuggingFace)
-    // ============================================
-    // Uncomment this if you're using an external API
-    /*
-    const externalApiUrl = "https://api-inference.huggingface.co/models/your-model"
-    const apiKey = process.env.HUGGINGFACE_API_KEY
-
-    const response = await fetch(externalApiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        inputs: JSON.stringify(candidate),
-        parameters: { jobRequirements },
-      }),
-    })
-
-    const result = await response.json()
-    return NextResponse.json(result)
-    */
-
-    // ============================================
-    // OPTION 3: Backend Calculation (Node.js)
-    // ============================================
-    // Perform calculation in Node.js backend
     
     const rankingResult = performBackendRanking(candidate, jobRequirements)
     return NextResponse.json(rankingResult)
@@ -134,28 +85,3 @@ function performBackendRanking(candidate: any, jobRequirements: any) {
     reasoning: `Matched ${matchedSkills.length}/${requiredSkills.length} required skills`,
   }
 }
-
-/**
- * Alternative: Call Python backend
- * 
- * Environment variables needed in .env.local:
- * PYTHON_RANKING_SERVICE_URL=http://localhost:5000
- * 
- * Python backend example (Flask):
- * 
- * @app.route('/api/rank-candidate', methods=['POST'])
- * def rank_candidate():
- *     data = request.json
- *     candidate = data['candidate']
- *     job_reqs = data['jobRequirements']
- *     
- *     # Your ML model here
- *     score = your_model.predict(candidate)
- *     
- *     return {
- *         'aiScore': int(score * 100),
- *         'resumeMatch': 80,
- *         'skillsMatch': 85,
- *         'experienceMatch': 75
- *     }
- */

@@ -38,7 +38,16 @@ export default function RootLayout({
             __html: `
               (function () {
                 try {
-                  var stored = localStorage.getItem("triplet_theme");
+                  var pathname = window.location.pathname || "";
+                  var key = pathname.indexOf("/hr") === 0
+                    ? "triplet_theme_hr"
+                    : pathname.indexOf("/candidate") === 0
+                      ? "triplet_theme_candidate"
+                      : "triplet_theme";
+                  var stored = localStorage.getItem(key);
+                  if (stored !== "light" && stored !== "dark" && key !== "triplet_theme") {
+                    stored = localStorage.getItem("triplet_theme");
+                  }
                   var theme = stored === "light" ? "light" : "dark";
                   var root = document.documentElement;
                   if (theme === "dark") {

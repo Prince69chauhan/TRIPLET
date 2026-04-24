@@ -1,34 +1,32 @@
 "use client"
 
 import { useEffect, useState } from "react"
-
-const THEME_KEY = "triplet_theme"
+import { usePathname } from "next/navigation"
+import { applyTheme, resolveStoredTheme, themeKeyForPath, type AppTheme } from "@/lib/theme"
 
 export function useTheme() {
-  const [theme, setTheme] = useState<"dark" | "light">("dark")
+  const pathname = usePathname()
+  const [theme, setTheme] = useState<AppTheme>("dark")
 
   useEffect(() => {
-    const stored = localStorage.getItem(THEME_KEY) as "dark" | "light" | null
-    const resolved = stored === "light" ? "light" : "dark"
+    const resolved = resolveStoredTheme(pathname, (key) => {
+      try {
+        return localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    })
     setTheme(resolved)
     applyTheme(resolved)
-  }, [])
-
-  function applyTheme(t: "dark" | "light") {
-    const root = document.documentElement
-    if (t === "dark") {
-      root.classList.add("dark")
-      root.classList.remove("light")
-    } else {
-      root.classList.remove("dark")
-      root.classList.add("light")
-    }
-  }
+  }, [pathname])
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark"
+    const key = themeKeyForPath(pathname)
     setTheme(next)
-    localStorage.setItem(THEME_KEY, next)
+    try {
+      localStorage.setItem(key, next)
+    } catch {}
     applyTheme(next)
   }
 

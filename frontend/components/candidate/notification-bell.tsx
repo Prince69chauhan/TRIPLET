@@ -154,40 +154,38 @@ export function CandidateNotificationBell() {
       {/* Bell */}
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="relative h-10 w-10 rounded-full flex items-center justify-center
-          text-muted-foreground hover:text-foreground hover:bg-secondary
-          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50
+        className="relative h-8 w-8 rounded-full flex items-center justify-center
+          text-muted-foreground hover:text-foreground hover:bg-secondary/80
+          focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40
           transition-all duration-200 active:scale-95"
       >
-        <Bell className={`h-5 w-5 ${unreadCount > 0 ? "animate-pulse" : ""}`} />
+        <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <>
-            <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full
-              bg-red-500 text-white text-[10px] font-bold flex items-center
-              justify-center ring-2 ring-background shadow-[0_2px_6px_rgba(239,68,68,0.45)]">
+            <span className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full
+              bg-red-500 text-white text-[9px] font-bold flex items-center
+              justify-center ring-[1.5px] ring-background">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
-            <span className="absolute top-1.5 right-1.5 h-4 w-4 rounded-full bg-red-500/60 animate-ping" aria-hidden />
           </>
         )}
       </button>
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-12 w-96 bg-card/98 backdrop-blur-sm border border-border
-          rounded-xl shadow-[0_20px_48px_rgba(15,23,42,0.18)] z-50 overflow-hidden
-          animate-in fade-in slide-in-from-top-2 duration-200">
+        <div className="absolute right-0 top-10 w-88 bg-card/99 backdrop-blur-xl border border-border/60
+          rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08),_0_0_0_1px_rgba(0,0,0,0.04)] z-50 overflow-hidden
+          animate-in fade-in slide-in-from-top-1 duration-150">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3
-            border-b border-border bg-secondary/30">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
             <div className="flex items-center gap-2">
-              <Bell className="h-4 w-4 text-primary" />
-              <span className="font-semibold text-foreground text-sm">
+              <Bell className="h-3.5 w-3.5 text-primary" />
+              <span className="font-semibold text-foreground text-[13px]">
                 Notifications
               </span>
               {unreadCount > 0 && (
-                <Badge className="bg-red-500/10 text-red-500 border-0 text-xs px-1.5">
+                <Badge className="bg-red-500/10 text-red-500 border-0 text-[10px] px-1.5 py-0">
                   {unreadCount} new
                 </Badge>
               )}
@@ -197,7 +195,7 @@ export function CandidateNotificationBell() {
                 <button
                   onClick={handleMarkAllRead}
                   disabled={loading}
-                  className="flex items-center gap-1 text-xs text-muted-foreground
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground
                     hover:text-foreground transition-colors px-2 py-1 rounded-lg
                     hover:bg-secondary disabled:opacity-50"
                   title="Mark all as read"
@@ -214,18 +212,18 @@ export function CandidateNotificationBell() {
                 className="p-1 rounded-lg text-muted-foreground
                   hover:text-foreground hover:bg-secondary transition-colors"
               >
-                <X className="h-4 w-4" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[22rem] overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="py-12 text-center space-y-2">
-                <Bell className="h-8 w-8 text-muted-foreground mx-auto opacity-50" />
-                <p className="text-sm text-muted-foreground">No notifications yet</p>
-                <p className="text-xs text-muted-foreground">
+              <div className="py-10 text-center space-y-1.5">
+                <Bell className="h-7 w-7 text-muted-foreground mx-auto opacity-40" />
+                <p className="text-[13px] text-muted-foreground font-medium">No notifications yet</p>
+                <p className="text-[11px] text-muted-foreground/70">
                   Apply to jobs to get updates here
                 </p>
               </div>
@@ -233,41 +231,32 @@ export function CandidateNotificationBell() {
               notifications.map(n => (
                 <div
                   key={n.id}
-                  className={`px-4 py-3 border-b border-border/50 transition-colors
-                    hover:bg-secondary/30
-                    ${!n.is_read ? `border-l-2 ${notifColor(n.type)}` : ""}
+                  className={`px-4 py-2.5 border-b border-border/40 transition-colors
+                    hover:bg-secondary/20
+                    ${!n.is_read ? `border-l-2 ${notifColor(n.type)}` : "pl-[18px]"}
                   `}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-start gap-2 flex-1 min-w-0">
-
-                      {/* Unread dot */}
-                      <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0
-                        ${!n.is_read ? "bg-primary" : "bg-transparent"}`}
-                      />
-
-                      <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex-1 min-w-0 space-y-0.5">
                         {/* Type icon + subject */}
                         <div className="flex items-center gap-1.5">
                           <NotifIcon type={n.type} />
-                          <p className={`text-sm font-medium truncate
+                          <p className={`text-[12.5px] font-medium truncate
                             ${!n.is_read ? "text-foreground" : "text-muted-foreground"}`}>
                             {n.subject}
                           </p>
                         </div>
-
                         {/* Body preview */}
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {n.body.split("\n").filter(l => l.trim()).slice(0, 2).join(" ")}
+                        <p className="text-[11px] text-muted-foreground line-clamp-1 leading-snug">
+                          {n.body.split("\n").filter(l => l.trim()).slice(0, 1).join(" ")}
                         </p>
-
                         {/* Time */}
-                        <p className="text-xs text-muted-foreground/60">
+                        <p className="text-[10px] text-muted-foreground/50">
                           {timeAgo(n.created_at)}
                         </p>
                       </div>
                     </div>
-
                     {/* Mark read */}
                     {!n.is_read && (
                       <button
@@ -279,8 +268,8 @@ export function CandidateNotificationBell() {
                         title="Mark as read"
                       >
                         {marking === n.id
-                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          : <CheckCheck className="h-3.5 w-3.5" />
+                          ? <Loader2 className="h-3 w-3 animate-spin" />
+                          : <CheckCheck className="h-3 w-3" />
                         }
                       </button>
                     )}
@@ -292,9 +281,9 @@ export function CandidateNotificationBell() {
 
           {/* Footer */}
           {notifications.length > 0 && (
-            <div className="px-4 py-2.5 border-t border-border bg-secondary/20">
-              <p className="text-xs text-muted-foreground text-center">
-                Showing last 20 notifications · Auto-refreshes every 60s
+            <div className="px-4 py-2 border-t border-border/40">
+              <p className="text-[10px] text-muted-foreground/60 text-center">
+                Showing last 20 notifications
               </p>
             </div>
           )}

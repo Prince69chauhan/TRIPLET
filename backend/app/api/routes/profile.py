@@ -47,6 +47,10 @@ from app.models.models import (
     User,
 )
 from app.services.storage.minio import get_minio_client
+from app.utils.notification_preferences import (
+    DEFAULT_NOTIFICATION_PREFERENCES,
+    normalize_notification_preferences,
+)
 from app.utils.auth import hash_password, verify_password
 
 logger = logging.getLogger(__name__)
@@ -82,6 +86,15 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class NotificationPreferencesUpdate(BaseModel):
+    in_app_enabled: Optional[bool] = None
+    message_notifications: Optional[bool] = None
+    application_updates: Optional[bool] = None
+    email_message_digest: Optional[bool] = None
+    email_application_updates: Optional[bool] = None
+    security_alerts: Optional[bool] = None
+
+
 def _extract_avatar_object_key(url: str) -> str:
     path = urlsplit(url).path.lstrip("/")
     bucket_prefix = f"{AVATAR_BUCKET}/"
@@ -104,6 +117,9 @@ async def get_my_profile(
         "role": current_user.role,
         "is_verified": current_user.is_verified,
         "created_at": current_user.created_at,
+        "notification_preferences": normalize_notification_preferences(
+            current_user.notification_preferences
+        ),
     }
 
     if current_user.role.value == "candidate":
@@ -305,6 +321,38 @@ async def change_password(
     await db.commit()
 
     return {"message": "Password changed successfully."}
+
+
+@router.get("/notification-settings")
+async def get_notification_settings(
+    current_user: User = Depends(get_current_user),
+):
+    return normalize_notification_preferences(current_user.notification_preferences)
+
+
+@router.put("/notification-settings")
+async def update_notification_settings(
+    payload: NotificationPreferencesUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_raw_db),
+):
+    result = await db.execute(select(User).where(User.id == current_user.id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    current = normalize_notification_preferences(user.notification_preferences)
+    updates = payload.model_dump(exclude_unset=True)
+    for key, value in updates.items():
+        if key in DEFAULT_NOTIFICATION_PREFERENCES and isinstance(value, bool):
+            current[key] = value
+
+    if current_user.role.value == "employer":
+        current["security_alerts"] = True
+
+    user.notification_preferences = current
+    await db.commit()
+    return current
 
 
 @router.delete("/resume/reset")

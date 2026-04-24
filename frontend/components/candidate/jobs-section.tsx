@@ -31,6 +31,9 @@ import {
   Tag,
   ClipboardList,
   Calendar,
+  MapPin,
+  Users2,
+  DollarSign,
 } from "lucide-react"
 
 type JobLifecycleStatus = "active" | "paused" | "removed" | "completed"
@@ -146,6 +149,62 @@ function getJobLifecycleBadge(status?: JobLifecycleStatus) {
   }
 }
 
+function CandidateDetailSectionHeading({
+  icon: Icon,
+  title,
+}: {
+  icon: React.ElementType
+  title: string
+}) {
+  return (
+    <div className="flex items-center gap-2.5 border-b border-border/50 pb-3">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+        <Icon className="h-4 w-4" />
+      </span>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+    </div>
+  )
+}
+
+function CandidateDetailStatRow({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ElementType
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg bg-muted/50 px-3.5 py-2.5 dark:bg-secondary/20">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+      <span className="w-20 shrink-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground break-keep whitespace-normal">
+        {label}
+      </span>
+      <span className="flex-1 break-keep whitespace-normal text-sm font-bold text-foreground" title={value}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function CandidateDetailInfoCell({
+  label,
+  value,
+}: {
+  label: string
+  value: React.ReactNode
+}) {
+  return (
+    <div className="rounded-lg border border-border/50 bg-background/60 px-3.5 py-3 dark:bg-background/30">
+      <p className="mb-1 text-[11px] font-medium text-muted-foreground break-keep whitespace-normal">{label}</p>
+      <div className="break-keep whitespace-normal text-sm font-semibold leading-snug text-foreground">{value}</div>
+    </div>
+  )
+}
+
 const JobCard = memo(function JobCard({
   job,
   tab,
@@ -179,82 +238,82 @@ const JobCard = memo(function JobCard({
 
   return (
     <Card
-      className="bg-card border-border hover:border-primary/30 transition-colors"
+      className="bg-card border-border/60 hover:border-primary/25 hover:shadow-[0_6px_24px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_8px_28px_rgba(0,0,0,0.32)] transition-all duration-200"
       style={WINDOWED_CARD_STYLE}
     >
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex flex-wrap items-center gap-2">
               {showNewDot && (
-                <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
+                <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]" />
               )}
-              <h3 className="font-semibold text-foreground text-base">{job.title}</h3>
+              <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-foreground">{job.title}</h3>
               {tab === "applied" && (
-                <Badge className={`text-xs border-0 ${getStatusColor(appliedJob.status)}`}>
+                <Badge className={`border-0 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em] ${getStatusColor(appliedJob.status)}`}>
                   {appliedJob.status}
                 </Badge>
               )}
               {tab !== "applied" && lifecycleBadge && (
-                <Badge className={`text-xs border ${lifecycleBadge.className}`}>
-                  {LifecycleIcon && <LifecycleIcon className="h-3 w-3 mr-1" />}
+                <Badge className={`border px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.04em] ${lifecycleBadge.className}`}>
+                  {LifecycleIcon && <LifecycleIcon className="mr-1 h-2.5 w-2.5" />}
                   {lifecycleBadge.label}
                 </Badge>
               )}
             </div>
 
             {job.description && (
-              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+              <p className="mt-1.5 line-clamp-1 text-[12.5px] text-muted-foreground">
                 {job.description}
               </p>
             )}
 
-            <div className="flex flex-wrap gap-1.5 mt-3">
+            <div className="mt-3 flex flex-wrap gap-1.5">
               {job.required_skills?.slice(0, 4).map((skill: string) => (
-                <Badge key={skill} variant="secondary" className="text-xs bg-secondary text-secondary-foreground">
+                <Badge key={skill} variant="secondary" className="border-0 bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
                   {skill}
                 </Badge>
               ))}
               {(job.required_skills?.length || 0) > 4 && (
-                <Badge variant="secondary" className="text-xs bg-secondary text-muted-foreground">
+                <Badge variant="secondary" className="border-0 bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                   +{job.required_skills.length - 4}
                 </Badge>
               )}
               {job.min_cgpa && (
-                <Badge className="text-xs bg-primary/10 text-primary border-0">
-                  Min CGPA {job.min_cgpa}
+                <Badge className="border-0 bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                  CGPA {job.min_cgpa}+
                 </Badge>
               )}
               {job.max_passout_year && (
-                <Badge className="text-xs bg-secondary text-secondary-foreground border-0">
-                  Passout by {job.max_passout_year}
+                <Badge className="border-0 bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
+                  Passout {job.max_passout_year}
                 </Badge>
               )}
               {!job.allow_gap && (
-                <Badge className="text-xs bg-secondary text-secondary-foreground border-0">
+                <Badge className="border-0 bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
                   No gap
                 </Badge>
               )}
               {!job.allow_backlogs && (
-                <Badge className="text-xs bg-secondary text-secondary-foreground border-0">
+                <Badge className="border-0 bg-secondary/60 px-2 py-0.5 text-[11px] font-medium text-secondary-foreground">
                   No backlogs
                 </Badge>
               )}
             </div>
 
             {tab === "applied" && (
-              <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
+              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[11.5px] text-muted-foreground">
+                <span className="flex items-center gap-1.5">
                   <Clock className="h-3 w-3" />
-                  Applied {formatDate(appliedJob.applied_at)}
+                  Applied <span className="font-medium text-foreground/80">{formatDate(appliedJob.applied_at)}</span>
                 </span>
                 {appliedJob.final_score_d !== null && (
-                  <span className="flex items-center gap-1 text-primary">
-                    AI Score: <strong>{appliedJob.final_score_d}%</strong>
+                  <span className="flex items-center gap-1.5 font-semibold text-primary">
+                    <Sparkles className="h-3 w-3" /> AI Score: {appliedJob.final_score_d}%
                   </span>
                 )}
                 {appliedJob.passed_hard_filter === false && appliedJob.filter_fail_reason && (
-                  <span className="flex items-center gap-1 text-red-500">
+                  <span className="flex items-center gap-1.5 text-red-500">
                     <AlertCircle className="h-3 w-3" />
                     {appliedJob.filter_fail_reason}
                   </span>
@@ -263,61 +322,61 @@ const JobCard = memo(function JobCard({
             )}
 
             {tab === "saved" && "saved_at" in job && job.saved_at && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Saved {formatDate(job.saved_at)}
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Saved <span className="font-medium text-foreground/70">{formatDate(job.saved_at)}</span>
               </p>
             )}
 
             {tab === "saved" && lifecycleBadge && (
-              <p className="text-xs mt-2 text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 This job is currently {lifecycleBadge.label.toLowerCase()}.
               </p>
             )}
 
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="mt-1.5 text-[10.5px] text-muted-foreground/60">
               Posted {formatDate(job.created_at)}
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 shrink-0">
-            <Button
-              onClick={() => onView(job)}
-              variant="outline"
-              size="sm"
-              className="border-border text-xs text-muted-foreground hover:text-foreground"
-            >
-              <Eye className="h-3.5 w-3.5 mr-1" /> View
-            </Button>
-
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
             {tab !== "applied" && (
               <button
                 onClick={() => (isSaved ? onUnsave(job.id) : onSave(job.id))}
                 disabled={saving === job.id}
-                className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary disabled:opacity-50"
                 title={isSaved ? "Remove from saved" : "Save job"}
               >
                 {saving === job.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : isSaved ? (
-                  <BookmarkCheck className="h-4 w-4 text-primary" />
+                  <BookmarkCheck className="h-3.5 w-3.5 text-primary" />
                 ) : (
-                  <Bookmark className="h-4 w-4" />
+                  <Bookmark className="h-3.5 w-3.5" />
                 )}
               </button>
             )}
+
+            <Button
+              onClick={() => onView(job)}
+              variant="outline"
+              size="sm"
+              className="h-8 border-border/60 px-3 text-[11.5px] font-medium text-muted-foreground hover:text-foreground"
+            >
+              <Eye className="mr-1 h-3 w-3" /> View
+            </Button>
 
             {tab !== "applied" && (
               <Button
                 onClick={() => onApply(job.id)}
                 disabled={applying === job.id || isApplied || !canApply}
                 size="sm"
-                className="bg-primary text-primary-foreground text-xs px-3"
+                className="h-8 bg-primary px-3 text-[11.5px] font-semibold text-primary-foreground shadow-[0_2px_10px_color-mix(in_oklch,var(--primary)_22%,transparent)]"
               >
                 {applying === job.id ? (
                   <Loader2 className="h-3 w-3 animate-spin" />
                 ) : isApplied ? (
                   <>
-                    <CheckCircle2 className="h-3 w-3 mr-1" /> Applied
+                    <CheckCircle2 className="mr-1 h-3 w-3" /> Applied
                   </>
                 ) : jobStatus === "paused" ? (
                   "Paused"
@@ -326,7 +385,9 @@ const JobCard = memo(function JobCard({
                 ) : jobStatus === "completed" ? (
                   "Completed"
                 ) : (
-                  "Quick Apply"
+                  <>
+                    <Send className="mr-1 h-3 w-3" /> Quick Apply
+                  </>
                 )}
               </Button>
             )}
@@ -721,6 +782,8 @@ export function JobsSection() {
     : undefined
   const lifecycleBadge = getJobLifecycleBadge(lifecycleStatus)
   const LifecycleIcon = lifecycleBadge?.icon
+  const viewJobIsApplied = viewJob ? appliedIds.has(viewJob.id) : false
+  const viewJobCanApply = lifecycleStatus === undefined || lifecycleStatus === "active"
   const handleViewJob = useCallback((job: Job | AppliedJob) => {
     setViewJob(job)
     if (activeTab === "available") {
@@ -734,8 +797,8 @@ export function JobsSection() {
   }, [activeTab])
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {tabs.map((tab) => {
           const Icon = tab.icon
           const isActive = activeTab === tab.id
@@ -744,26 +807,26 @@ export function JobsSection() {
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`
-                cursor-pointer transition-all
+                cursor-pointer transition-all duration-200
                 ${isActive
-                  ? "bg-primary/10 border-primary text-primary"
-                  : "bg-card border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  ? "border-primary/40 bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] ring-1 ring-primary/15 shadow-[0_4px_20px_color-mix(in_oklch,var(--primary)_10%,transparent)]"
+                  : "border-border/60 bg-card hover:-translate-y-0.5 hover:border-border hover:shadow-[0_6px_20px_rgba(0,0,0,0.05)] dark:hover:shadow-[0_6px_24px_rgba(0,0,0,0.28)]"
                 }
               `}
             >
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className={`h-12 w-12 rounded-xl flex items-center justify-center shrink-0 ${isActive ? "bg-primary/20" : "bg-secondary"}`}>
-                  <Icon className="h-6 w-6" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[13px] transition-colors ${isActive ? "bg-primary/15 shadow-[0_2px_12px_color-mix(in_oklch,var(--primary)_18%,transparent)]" : "bg-secondary/70"}`}>
+                  <Icon className={`h-5 w-5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                 </div>
-                <div>
-                  <p className={`text-2xl font-bold ${isActive ? "text-primary" : "text-foreground"}`}>
+                <div className="min-w-0">
+                  <p className={`text-[26px] font-bold leading-none tabular-nums tracking-tight ${isActive ? "text-primary" : "text-foreground"}`}>
                     {tab.count}
                   </p>
-                  <div className="flex items-center gap-2">
-                    {(tab.id === "available" && unseenAvailableJobIds.size > 0) && (
-                      <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.16)]" />
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    {tab.id === "available" && unseenAvailableJobIds.size > 0 && (
+                      <span className="inline-flex h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]" />
                     )}
-                    <p className="text-sm text-muted-foreground">{tab.label}</p>
+                    <p className={`text-[12px] font-medium ${isActive ? "text-primary/85" : "text-muted-foreground"}`}>{tab.label}</p>
                   </div>
                 </div>
               </CardContent>
@@ -772,75 +835,79 @@ export function JobsSection() {
         })}
       </div>
 
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search jobs by title, description, or skills..."
-            className="bg-card border-border text-foreground pl-10"
-          />
-        </div>
+      <Card className="border-border/60 bg-card">
+        <CardContent className="p-3.5">
+          <div className="flex flex-col gap-2.5 xl:flex-row xl:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search jobs by title, description, or skills..."
+                className="h-9 border-border/60 bg-input pl-9 text-[13px] text-foreground placeholder:text-muted-foreground/60"
+              />
+            </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row xl:shrink-0">
-          <Input
-            value={locationFilter}
-            onChange={(e) => setLocationFilter(e.target.value)}
-            placeholder="Filter by location"
-            className="w-full bg-card border-border text-foreground sm:w-[180px]"
-          />
-          {activeTab !== "available" && (
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full bg-card border-border text-foreground sm:w-[170px]">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                {statusOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-full bg-card border-border text-foreground sm:w-[170px]">
-              <SelectValue placeholder="Department" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">All Departments</SelectItem>
-              {availableDepartments.map((department) => (
-                <SelectItem key={department} value={department.toLowerCase()}>
-                  {department}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-full bg-card border-border text-foreground sm:w-[170px]">
-              <SelectValue placeholder="Job type" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">All Types</SelectItem>
-              {availableTypes.map((type) => (
-                <SelectItem key={type} value={type.toLowerCase()}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Input
-            value={salaryFilter}
-            onChange={(e) => setSalaryFilter(e.target.value)}
-            placeholder="Filter by salary"
-            className="w-full bg-card border-border text-foreground sm:w-[180px]"
-          />
-        </div>
-      </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:shrink-0">
+              <Input
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+                placeholder="Location"
+                className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground sm:w-[150px]"
+              />
+              {activeTab !== "available" && (
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground sm:w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value} className="text-[13px]">
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                <SelectTrigger className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground sm:w-[140px]">
+                  <SelectValue placeholder="Department" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-[13px]">All Departments</SelectItem>
+                  {availableDepartments.map((department) => (
+                    <SelectItem key={department} value={department.toLowerCase()} className="text-[13px]">
+                      {department}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground sm:w-[140px]">
+                  <SelectValue placeholder="Job type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all" className="text-[13px]">All Types</SelectItem>
+                  {availableTypes.map((type) => (
+                    <SelectItem key={type} value={type.toLowerCase()} className="text-[13px]">
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                value={salaryFilter}
+                onChange={(e) => setSalaryFilter(e.target.value)}
+                placeholder="Salary"
+                className="h-9 w-full border-border/60 bg-input text-[13px] text-foreground sm:w-[120px]"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {applyError && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
+        <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-[13px] text-red-500">
           <AlertCircle className="h-4 w-4 shrink-0" />
           {applyError}
         </div>
@@ -848,20 +915,22 @@ export function JobsSection() {
 
       {loading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
         </div>
       ) : currentJobs.length === 0 ? (
-        <Card className="bg-card border-border">
-          <CardContent className="py-16 text-center space-y-3">
-            {activeTab === "available" && <Briefcase className="h-12 w-12 text-muted-foreground mx-auto" />}
-            {activeTab === "applied" && <Send className="h-12 w-12 text-muted-foreground mx-auto" />}
-            {activeTab === "saved" && <Bookmark className="h-12 w-12 text-muted-foreground mx-auto" />}
-            <p className="font-medium text-foreground">
+        <Card className="border-border/60 bg-card">
+          <CardContent className="space-y-2.5 py-16 text-center">
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary/60">
+              {activeTab === "available" && <Briefcase className="h-5 w-5 text-muted-foreground" />}
+              {activeTab === "applied" && <Send className="h-5 w-5 text-muted-foreground" />}
+              {activeTab === "saved" && <Bookmark className="h-5 w-5 text-muted-foreground" />}
+            </div>
+            <p className="text-[14.5px] font-semibold text-foreground">
               {activeTab === "available" && "No jobs available right now"}
               {activeTab === "applied" && "No applications sent yet"}
               {activeTab === "saved" && "No saved jobs yet"}
             </p>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-[12.5px] text-muted-foreground">
               {activeTab === "available" && "Check back later for new openings"}
               {activeTab === "applied" && "Browse available jobs and hit Quick Apply"}
               {activeTab === "saved" && "Bookmark jobs to save them for later"}
@@ -896,224 +965,176 @@ export function JobsSection() {
       )}
 
       <Dialog open={!!viewJob} onOpenChange={(open) => !open && setViewJob(null)}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-y-auto border-border/70 bg-card/98 p-0 backdrop-blur-sm ring-1 ring-border/40 shadow-[0_24px_48px_rgba(15,23,42,0.10)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.45)] sm:w-full">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto border-border/70 bg-card p-0 shadow-[0_24px_48px_rgba(15,23,42,0.12)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.5)] sm:w-full">
           {viewJob && (
             <>
               <DialogHeader className="sticky top-0 z-10 border-b border-border/60 bg-card/95 px-5 py-4 backdrop-blur-md sm:px-7 sm:py-5">
-                <DialogTitle className="flex flex-wrap items-center gap-x-3 gap-y-2 pr-8 text-[20px] font-semibold tracking-[-0.01em] text-foreground sm:text-[22px]">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/15">
-                    <Briefcase className="h-4 w-4" />
+                <div className="flex items-start gap-3 pr-8">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                    <Briefcase className="h-5 w-5" />
                   </span>
-                  <span className="break-words">{viewJob.title}</span>
-                </DialogTitle>
-                <DialogDescription className="sr-only">
-                  Full details for the {viewJob.title} job posting.
-                </DialogDescription>
+                  <div className="min-w-0 flex-1">
+                    <DialogTitle className="break-normal whitespace-normal text-[18px] font-bold leading-snug tracking-tight text-foreground sm:text-[20px]">
+                      {viewJob.title}
+                    </DialogTitle>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      {"status" in viewJob && typeof viewJob.status === "string" && activeTab === "applied" && (
+                        <Badge className={`text-xs border-0 ${getStatusColor(viewJob.status)}`}>
+                          {viewJob.status}
+                        </Badge>
+                      )}
+                      {lifecycleBadge && (
+                        <Badge className={`text-xs border ${lifecycleBadge.className}`}>
+                          {LifecycleIcon && <LifecycleIcon className="mr-1 h-3 w-3" />}
+                          {lifecycleBadge.label}
+                        </Badge>
+                      )}
+                      <DialogDescription className="m-0 flex items-center gap-1 text-[12px] text-muted-foreground">
+                        <Calendar className="h-3 w-3 shrink-0" />
+                        <span className="whitespace-nowrap">
+                          Posted {formatDate(viewJob.created_at)}
+                        </span>
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
               </DialogHeader>
 
-              <div className="relative space-y-6 px-5 pb-6 pt-5 sm:px-7 sm:pb-7">
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/[0.04] via-transparent to-transparent" aria-hidden />
-                <div className="flex flex-wrap gap-2 pl-12">
-                  {"status" in viewJob && typeof viewJob.status === "string" && activeTab === "applied" && (
-                    <Badge className={`text-xs border-0 ${getStatusColor(viewJob.status)}`}>
-                      {viewJob.status}
-                    </Badge>
-                  )}
-                  {lifecycleBadge && (
-                    <Badge className={`text-xs border ${lifecycleBadge.className}`}>
-                      {LifecycleIcon && <LifecycleIcon className="h-3 w-3 mr-1" />}
-                      {lifecycleBadge.label}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="flex items-center gap-1 text-xs bg-secondary text-secondary-foreground">
-                    <Calendar className="h-3 w-3" />
-                    Posted {formatDate(viewJob.created_at)}
-                  </Badge>
-                </div>
-
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+              <div className="space-y-6 px-5 py-5 sm:px-7">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {[
-                    { label: "Department", value: formatValue(viewJob.department) },
-                    { label: "Job Type",   value: formatValue(viewJob.employment_type) },
-                    { label: "Location",   value: formatValue(viewJob.location) },
-                    { label: "Salary",     value: formatValue(viewJob.salary) },
-                    { label: "Vacancies",  value: formatValue(viewJob.vacancies, "1") },
+                    { icon: Calendar, label: "Department", value: formatValue(viewJob.department) },
+                    { icon: Briefcase, label: "Job Type", value: formatValue(viewJob.employment_type) },
+                    { icon: MapPin, label: "Location", value: formatValue(viewJob.location) },
+                    { icon: DollarSign, label: "Salary", value: formatValue(viewJob.salary) },
+                    { icon: Users2, label: "Vacancies", value: formatValue(viewJob.vacancies, "1") },
                   ].map((item) => (
-                    <div
+                    <CandidateDetailStatRow
                       key={item.label}
-                      className="rounded-xl border border-border/60 bg-gradient-to-br from-muted/80 to-muted/40 dark:from-secondary/40 dark:to-secondary/10 p-4 shadow-[0_4px_12px_rgba(15,23,42,0.04)] transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
-                    >
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{item.label}</p>
-                      <p className="mt-2 break-words text-sm font-semibold text-foreground">{item.value}</p>
-                    </div>
+                      icon={item.icon}
+                      label={item.label}
+                      value={item.value}
+                    />
                   ))}
                 </div>
 
-                <div className="space-y-2">
-                  <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <ClipboardList className="h-3.5 w-3.5" />
-                    Job Description
-                  </p>
-                  <div className="rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <p className="whitespace-pre-wrap break-words text-[14px] leading-7 text-foreground/85">
-                      {viewJob.description || "No description provided."}
+                {viewJob.description && (
+                  <div className="space-y-3">
+                    <CandidateDetailSectionHeading icon={ClipboardList} title="Job Description" />
+                    <p className="break-normal whitespace-pre-wrap px-1 text-[13.5px] leading-relaxed text-foreground/80">
+                      {viewJob.description}
                     </p>
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-2">
-                  <p className="flex items-center gap-2 text-[13px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    <Tag className="h-3.5 w-3.5" />
-                    Required Skills
-                    {viewJob.required_skills?.length ? (
-                      <span className="ml-1 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary ring-1 ring-primary/20">
+                {viewJob.required_skills?.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5 border-b border-border/50 pb-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
+                        <Tag className="h-4 w-4" />
+                      </span>
+                      <h3 className="text-sm font-semibold text-foreground">Required Skills</h3>
+                      <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary ring-1 ring-primary/20">
                         {viewJob.required_skills.length}
                       </span>
-                    ) : null}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {viewJob.required_skills?.length ? (
-                      viewJob.required_skills.map((skill) => (
+                    </div>
+                    <div className="flex flex-wrap gap-2 px-1">
+                      {viewJob.required_skills.map((skill) => (
                         <Badge
                           key={skill}
                           variant="secondary"
-                          className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary shadow-[0_2px_6px_rgba(15,23,42,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-[0_6px_14px_rgba(15,23,42,0.08)]"
+                          className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary hover:bg-primary/15"
                         >
                           {skill}
                         </Badge>
-                      ))
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No required skills listed.</p>
-                    )}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
                   <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <GraduationCap className="h-4 w-4" />
-                      </span>
-                      Eligibility Criteria
-                    </p>
-                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
+                    <CandidateDetailSectionHeading icon={GraduationCap} title="Eligibility Criteria" />
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">10th Minimum</p>
-                        <p className="text-sm text-foreground">{formatValue(viewJob.min_tenth_percentage, "No minimum")}%</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">12th Minimum</p>
-                        <p className="text-sm text-foreground">{formatValue(viewJob.min_twelfth_percentage, "No minimum")}%</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Minimum CGPA</p>
-                        <p className="text-sm text-foreground">{formatValue(viewJob.min_cgpa, "No minimum")}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Passout Range</p>
-                        <p className="text-sm text-foreground">
-                          {viewJob.min_passout_year || viewJob.max_passout_year
+                      <CandidateDetailInfoCell
+                        label="10th Minimum"
+                        value={`${formatValue(viewJob.min_tenth_percentage, "No minimum")}%`}
+                      />
+                      <CandidateDetailInfoCell
+                        label="12th Minimum"
+                        value={`${formatValue(viewJob.min_twelfth_percentage, "No minimum")}%`}
+                      />
+                      <CandidateDetailInfoCell
+                        label="Min CGPA"
+                        value={viewJob.min_cgpa != null ? `${viewJob.min_cgpa} / 10` : "No minimum"}
+                      />
+                      <CandidateDetailInfoCell
+                        label="Passout Range"
+                        value={
+                          viewJob.min_passout_year || viewJob.max_passout_year
                             ? `${viewJob.min_passout_year ?? "Any"} - ${viewJob.max_passout_year ?? "Any"}`
-                            : "Not specified"}
-                        </p>
-                      </div>
+                            : "Not specified"
+                        }
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <ShieldCheck className="h-4 w-4" />
-                      </span>
-                      Hiring Rules
-                    </p>
-                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
+                    <CandidateDetailSectionHeading icon={ShieldCheck} title="Hiring Rules" />
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Gap Allowed</p>
-                        <p className="text-sm text-foreground">{viewJob.allow_gap ? "Yes" : "No"}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Max Gap Months</p>
-                        <p className="text-sm text-foreground">
-                          {viewJob.allow_gap ? formatValue(viewJob.max_gap_months, "No limit specified") : "Not applicable"}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Backlogs Allowed</p>
-                        <p className="text-sm text-foreground">{viewJob.allow_backlogs ? "Yes" : "No"}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Max Active Backlogs</p>
-                        <p className="text-sm text-foreground">
-                          {viewJob.allow_backlogs ? formatValue(viewJob.max_active_backlogs, "No limit specified") : "Not applicable"}
-                        </p>
-                      </div>
+                      <CandidateDetailInfoCell label="Gap Allowed" value={viewJob.allow_gap ? "Yes" : "No"} />
+                      <CandidateDetailInfoCell
+                        label="Max Gap"
+                        value={viewJob.allow_gap ? formatValue(viewJob.max_gap_months, "No limit") : "N/A"}
+                      />
+                      <CandidateDetailInfoCell label="Backlogs Allowed" value={viewJob.allow_backlogs ? "Yes" : "No"} />
+                      <CandidateDetailInfoCell
+                        label="Max Backlogs"
+                        value={viewJob.allow_backlogs ? formatValue(viewJob.max_active_backlogs, "No limit") : "N/A"}
+                      />
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                  <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                      <Sparkles className="h-4 w-4" />
-                    </span>
-                    AI Bonus Criteria
-                  </p>
-                  <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                      <p className="text-xs text-muted-foreground">Skill in Project Bonus</p>
-                      <p className="text-sm text-foreground">{formatValue(viewJob.bonus_skill_in_project, "None")}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                      <p className="text-xs text-muted-foreground">Elite Internship Bonus</p>
-                      <p className="text-sm text-foreground">{formatValue(viewJob.bonus_elite_internship, "None")}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                      <p className="text-xs text-muted-foreground">Project Level Bonus</p>
-                      <p className="text-sm text-foreground">{formatValue(viewJob.bonus_project_level, "None")}</p>
-                    </div>
-                    <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                      <p className="text-xs text-muted-foreground">Internship Duration Bonus</p>
-                      <p className="text-sm text-foreground">{formatValue(viewJob.bonus_internship_duration, "None")}</p>
-                    </div>
+                  <CandidateDetailSectionHeading icon={Sparkles} title="AI Bonus Criteria" />
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                    <CandidateDetailInfoCell
+                      label="Skill in Project"
+                      value={formatValue(viewJob.bonus_skill_in_project, "None")}
+                    />
+                    <CandidateDetailInfoCell
+                      label="Elite Internship"
+                      value={formatValue(viewJob.bonus_elite_internship, "None")}
+                    />
+                    <CandidateDetailInfoCell
+                      label="Project Level"
+                      value={formatValue(viewJob.bonus_project_level, "None")}
+                    />
+                    <CandidateDetailInfoCell
+                      label="Internship Duration"
+                      value={formatValue(viewJob.bonus_internship_duration, "None")}
+                    />
                   </div>
                 </div>
 
                 {activeTab === "applied" && "applied_at" in viewJob && (
                   <div className="space-y-3 rounded-xl border border-border/60 bg-muted/60 dark:bg-secondary/20 p-5 shadow-[0_4px_12px_rgba(15,23,42,0.04)]">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                        <ClipboardList className="h-4 w-4" />
-                      </span>
-                      Your Application
-                    </p>
-                    <div className="h-px w-full bg-gradient-to-r from-primary/30 via-border/60 to-transparent" />
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Applied On</p>
-                        <p className="text-sm text-foreground">{formatDate(viewJob.applied_at)}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Application Status</p>
-                        <p className="text-sm text-foreground">{formatValue(viewJob.status)}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">AI Score</p>
-                        <p className="text-sm text-foreground">{formatValue(viewJob.final_score_d, "Pending")}</p>
-                      </div>
-                      <div className="rounded-lg border border-border/60 bg-card dark:bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-card/80 dark:hover:bg-background/80">
-                        <p className="text-xs text-muted-foreground">Hard Filter</p>
-                        <p className="text-sm text-foreground">
-                          {viewJob.passed_hard_filter === null
+                    <CandidateDetailSectionHeading icon={ClipboardList} title="Your Application" />
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+                      <CandidateDetailInfoCell label="Applied On" value={formatDate(viewJob.applied_at)} />
+                      <CandidateDetailInfoCell label="Application Status" value={formatValue(viewJob.status)} />
+                      <CandidateDetailInfoCell label="AI Score" value={formatValue(viewJob.final_score_d, "Pending")} />
+                      <CandidateDetailInfoCell
+                        label="Hard Filter"
+                        value={
+                          viewJob.passed_hard_filter === null
                             ? "Pending"
                             : viewJob.passed_hard_filter
                               ? "Passed"
-                              : "Failed"}
-                        </p>
-                      </div>
+                              : "Failed"
+                        }
+                      />
                     </div>
                     {viewJob.filter_fail_reason && (
                       <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-3">
@@ -1124,6 +1145,52 @@ export function JobsSection() {
                   </div>
                 )}
               </div>
+
+              {activeTab !== "applied" && (
+                <div className="sticky bottom-0 z-10 border-t border-border/50 bg-card/97 px-5 py-3.5 backdrop-blur-xl sm:px-7">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-[12.5px] text-muted-foreground">
+                      {viewJobIsApplied
+                        ? "You have already applied to this job."
+                        : lifecycleStatus === "paused"
+                          ? "This job is paused and not accepting new applications right now."
+                          : lifecycleStatus === "removed"
+                            ? "This job has been removed and is no longer accepting applications."
+                            : lifecycleStatus === "completed"
+                              ? "This hiring process is completed."
+                              : "Ready to apply? Submit your application directly from this panel."}
+                    </p>
+                    <Button
+                      onClick={() => handleApply(viewJob.id)}
+                      disabled={applying === viewJob.id || viewJobIsApplied || !viewJobCanApply}
+                      className="min-w-[170px] bg-primary text-primary-foreground"
+                    >
+                      {applying === viewJob.id ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Applying...
+                        </>
+                      ) : viewJobIsApplied ? (
+                        <>
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Applied
+                        </>
+                      ) : lifecycleStatus === "paused" ? (
+                        "Paused"
+                      ) : lifecycleStatus === "removed" ? (
+                        "Removed"
+                      ) : lifecycleStatus === "completed" ? (
+                        "Completed"
+                      ) : (
+                        <>
+                          <Send className="mr-2 h-4 w-4" />
+                          Quick Apply
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </DialogContent>

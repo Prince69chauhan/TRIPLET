@@ -62,8 +62,8 @@ function StatusBadge({ status }: { status: JobStatus }) {
   }
   const { cls, dot, label } = map[status]
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide ${cls}`}>
-      <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${cls}`}>
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />
       {label}
     </span>
   )
@@ -71,20 +71,37 @@ function StatusBadge({ status }: { status: JobStatus }) {
 
 function SectionHeading({ icon: Icon, title }: { icon: React.ElementType; title: string }) {
   return (
-    <div className="flex items-center gap-2.5 pb-3 border-b border-border/50">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
-        <Icon className="h-4 w-4" />
+    <div className="flex items-center gap-2 pb-2.5 border-b border-border/40">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-primary/10 text-primary">
+        <Icon className="h-3.5 w-3.5" />
       </span>
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className="text-[13px] font-semibold text-foreground">{title}</h3>
+    </div>
+  )
+}
+
+// Compact horizontal row: icon + label (fixed width) + value (truncates)
+function StatRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-[10px] bg-secondary/40 px-3 py-2.5 dark:bg-secondary/30">
+      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-[7px] bg-primary/10 text-primary">
+        <Icon className="h-3 w-3" />
+      </div>
+      <span className="w-20 shrink-0 text-[10.5px] font-semibold uppercase tracking-wide text-muted-foreground break-keep whitespace-normal">
+        {label}
+      </span>
+      <span className="flex-1 break-keep whitespace-normal text-[13px] font-semibold text-foreground" title={value}>
+        {value}
+      </span>
     </div>
   )
 }
 
 function InfoCell({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-border/50 bg-background/60 px-3.5 py-3 dark:bg-background/30">
-      <p className="text-[11px] font-medium text-muted-foreground mb-1">{label}</p>
-      <p className="text-sm font-semibold text-foreground leading-snug">{value}</p>
+    <div className="rounded-[10px] border border-border/40 bg-background/50 px-3 py-2.5 dark:bg-background/20">
+      <p className="mb-0.5 text-[10.5px] font-medium text-muted-foreground break-keep whitespace-normal">{label}</p>
+      <div className="text-[13px] font-semibold text-foreground leading-snug break-keep whitespace-normal">{value}</div>
     </div>
   )
 }
@@ -99,57 +116,46 @@ export function JobDetailDialog({
   if (!job) return null
 
   const stats = [
-    { icon: Calendar,    label: "Department",  value: detailValue(job.department) },
-    { icon: Briefcase,   label: "Job Type",    value: detailValue(job.employment_type) },
-    { icon: MapPin,      label: "Location",    value: detailValue(job.location) },
-    { icon: DollarSign,  label: "Salary",      value: detailValue(job.salary) },
-    { icon: Users,       label: "Vacancies",   value: detailValue(job.vacancies, "1") },
+    { icon: Calendar,   label: "Department", value: detailValue(job.department) },
+    { icon: Briefcase,  label: "Job Type",   value: detailValue(job.employment_type) },
+    { icon: MapPin,     label: "Location",   value: detailValue(job.location) },
+    { icon: DollarSign, label: "Salary",     value: detailValue(job.salary) },
+    { icon: Users,      label: "Vacancies",  value: detailValue(job.vacancies, "1") },
   ]
 
   return (
     <Dialog open={!!job} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-4xl overflow-y-auto border-border/70 bg-card p-0 shadow-[0_24px_48px_rgba(15,23,42,0.12)] dark:shadow-[0_32px_64px_rgba(0,0,0,0.5)] sm:w-full">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] max-w-6xl overflow-y-auto border-border/60 bg-card p-0 sm:w-full">
 
         {/* ── Header ─────────────────────────────────────────── */}
-        <DialogHeader className="sticky top-0 z-10 border-b border-border/60 bg-card/95 px-5 py-4 backdrop-blur-md sm:px-7 sm:py-5">
-          <div className="flex flex-wrap items-start gap-x-3 gap-y-2 pr-8">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
-              <Briefcase className="h-5 w-5" />
+        <DialogHeader className="sticky top-0 z-10 border-b border-border/50 bg-card/97 px-5 py-3.5 backdrop-blur-xl sm:px-7 sm:py-4">
+          <div className="flex items-start gap-3 pr-8">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Briefcase className="h-4.5 w-4.5" />
             </span>
-            <div className="flex-1 min-w-0">
-              <DialogTitle className="text-[18px] font-bold tracking-tight text-foreground leading-snug sm:text-[20px] break-words">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="break-normal whitespace-normal text-[17px] font-bold leading-snug tracking-[-0.02em] text-foreground sm:text-[18px]">
                 {job.title}
               </DialogTitle>
-              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StatusBadge status={job.status} />
-                <DialogDescription className="flex items-center gap-1 text-[12px] text-muted-foreground m-0">
-                  <Calendar className="h-3 w-3" />
-                  Posted {new Date(job.created_at).toLocaleDateString()}
+                <DialogDescription className="m-0 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Calendar className="h-3 w-3 shrink-0" />
+                  <span className="whitespace-nowrap">
+                    Posted {new Date(job.created_at).toLocaleDateString()}
+                  </span>
                 </DialogDescription>
               </div>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="space-y-6 px-5 pb-7 pt-5 sm:px-7">
+        <div className="space-y-5 px-5 pb-6 pt-4 sm:px-7">
 
-          {/* ── Stats strip ─────────────────────────────────── */}
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
-            {stats.map(({ icon: Icon, label, value }) => (
-              <div
-                key={label}
-                className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/50 px-3.5 py-3 dark:bg-secondary/20"
-              >
-                <div className="flex items-center gap-1.5">
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon className="h-3 w-3" />
-                  </div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground leading-none truncate">
-                    {label}
-                  </p>
-                </div>
-                <p className="text-sm font-bold text-foreground leading-snug">{value}</p>
-              </div>
+          {/* ── Stats — single column rows, nothing ever wraps ── */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {stats.map((s) => (
+              <StatRow key={s.label} icon={s.icon} label={s.label} value={s.value} />
             ))}
           </div>
 
@@ -157,7 +163,7 @@ export function JobDetailDialog({
           {job.description && (
             <div className="space-y-3">
               <SectionHeading icon={Briefcase} title="Job Description" />
-              <p className="whitespace-pre-wrap break-words text-[13.5px] leading-relaxed text-foreground/80 px-1">
+              <p className="break-normal whitespace-pre-wrap text-[13.5px] leading-relaxed text-foreground/80 px-1">
                 {job.description}
               </p>
             </div>
@@ -165,22 +171,22 @@ export function JobDetailDialog({
 
           {/* ── Required Skills ─────────────────────────────── */}
           {job.required_skills?.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2.5 pb-3 border-b border-border/50">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-primary/15">
-                  <Tag className="h-4 w-4" />
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2 pb-2.5 border-b border-border/40">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] bg-primary/10 text-primary">
+                  <Tag className="h-3.5 w-3.5" />
                 </span>
-                <h3 className="text-sm font-semibold text-foreground">Required Skills</h3>
-                <span className="ml-0.5 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary ring-1 ring-primary/20">
+                <h3 className="text-[13px] font-semibold text-foreground">Required Skills</h3>
+                <span className="inline-flex h-4.5 min-w-[18px] items-center justify-center rounded-full bg-primary/10 px-1.5 text-[10px] font-bold text-primary">
                   {job.required_skills.length}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-2 px-1">
+              <div className="flex flex-wrap gap-1.5">
                 {job.required_skills.map((skill) => (
                   <Badge
                     key={skill}
                     variant="secondary"
-                    className="rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-[12px] font-medium text-primary hover:bg-primary/15"
+                    className="rounded-full border border-primary/20 bg-primary/8 px-2.5 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/12"
                   >
                     {skill}
                   </Badge>
@@ -190,25 +196,21 @@ export function JobDetailDialog({
           )}
 
           {/* ── Eligibility + Hiring Rules ───────────────────── */}
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/40 p-4 dark:bg-secondary/15">
+          <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-2">
+            <div className="space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10">
               <SectionHeading icon={GraduationCap} title="Eligibility Criteria" />
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <InfoCell
                   label="10th Minimum"
-                  value={`${detailValue(job.min_tenth_percentage, "—")}${job.min_tenth_percentage != null ? "%" : ""}`}
+                  value={job.min_tenth_percentage != null ? `${job.min_tenth_percentage}%` : "No minimum"}
                 />
                 <InfoCell
                   label="12th Minimum"
-                  value={`${detailValue(job.min_twelfth_percentage, "—")}${job.min_twelfth_percentage != null ? "%" : ""}`}
+                  value={job.min_twelfth_percentage != null ? `${job.min_twelfth_percentage}%` : "No minimum"}
                 />
                 <InfoCell
                   label="Min CGPA"
-                  value={
-                    job.min_cgpa != null
-                      ? `${job.min_cgpa} / 10`
-                      : "No minimum"
-                  }
+                  value={job.min_cgpa != null ? `${job.min_cgpa} / 10` : "No minimum"}
                 />
                 <InfoCell
                   label="Passout Range"
@@ -221,9 +223,9 @@ export function JobDetailDialog({
               </div>
             </div>
 
-            <div className="space-y-3 rounded-xl border border-border/60 bg-muted/40 p-4 dark:bg-secondary/15">
+            <div className="space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10">
               <SectionHeading icon={ShieldCheck} title="Hiring Rules" />
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <InfoCell
                   label="Gap Allowed"
                   value={
@@ -234,7 +236,11 @@ export function JobDetailDialog({
                 />
                 <InfoCell
                   label="Max Gap"
-                  value={job.allow_gap ? detailValue(job.max_gap_months, "No limit") + (job.max_gap_months != null ? " mo" : "") : "N/A"}
+                  value={
+                    job.allow_gap
+                      ? job.max_gap_months != null ? `${job.max_gap_months} mo` : "No limit"
+                      : "N/A"
+                  }
                 />
                 <InfoCell
                   label="Backlogs Allowed"
@@ -246,21 +252,25 @@ export function JobDetailDialog({
                 />
                 <InfoCell
                   label="Max Backlogs"
-                  value={job.allow_backlogs ? detailValue(job.max_active_backlogs, "No limit") : "N/A"}
+                  value={
+                    job.allow_backlogs
+                      ? job.max_active_backlogs != null ? String(job.max_active_backlogs) : "No limit"
+                      : "N/A"
+                  }
                 />
               </div>
             </div>
           </div>
 
           {/* ── AI Bonus Criteria ────────────────────────────── */}
-          <div className="space-y-3 rounded-xl border border-border/60 bg-muted/40 p-4 dark:bg-secondary/15">
+          <div className="space-y-3 rounded-xl border border-border/40 bg-secondary/20 p-4 dark:bg-secondary/10">
             <SectionHeading icon={Sparkles} title="AI Bonus Criteria" />
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
               {[
-                { label: "Skill in Project",      value: detailValue(job.bonus_skill_in_project, "None") },
-                { label: "Elite Internship",       value: detailValue(job.bonus_elite_internship, "None") },
-                { label: "Project Level",          value: detailValue(job.bonus_project_level, "None") },
-                { label: "Internship Duration",    value: detailValue(job.bonus_internship_duration, "None") },
+                { label: "Skill in Project",   value: detailValue(job.bonus_skill_in_project, "None") },
+                { label: "Elite Internship",   value: detailValue(job.bonus_elite_internship, "None") },
+                { label: "Project Level",      value: detailValue(job.bonus_project_level, "None") },
+                { label: "Internship Duration",value: detailValue(job.bonus_internship_duration, "None") },
               ].map((b) => (
                 <InfoCell key={b.label} label={b.label} value={b.value} />
               ))}

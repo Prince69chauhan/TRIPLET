@@ -41,6 +41,10 @@ from app.schemas.candidate import (
 from app.schemas.application import ApplicationWithScoreResponse
 from app.services.storage.minio import upload_resume, get_signed_url
 from app.services.integrity.hasher import hash_and_sign
+from app.utils.notification_preferences import (
+    normalize_notification_preferences,
+    notification_visible_for_role,
+)
 
 router = APIRouter()
 
@@ -929,7 +933,11 @@ async def get_candidate_notifications(
         .order_by(Notification.created_at.desc())
         .limit(20)
     )
-    notifications = result.scalars().all()
+    preferences = normalize_notification_preferences(current_user.notification_preferences)
+    notifications = [
+        n for n in result.scalars().all()
+        if notification_visible_for_role(n.notification_type, preferences, "candidate")
+    ]
 
     return [
         {

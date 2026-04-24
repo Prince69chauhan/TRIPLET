@@ -1924,7 +1924,8 @@ export function PostJobSection() {
             </CardContent>
           </Card>
 
-          {/* ── Recent Job Postings ── */}
+          {/* ── Right column: Recent Jobs + AI Guide ── */}
+          <div className="flex flex-col gap-6">
           <Card className="border-border/90 bg-card/94 shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:bg-card/88">
             <CardHeader>
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">Recent Activity</p>
@@ -1938,7 +1939,7 @@ export function PostJobSection() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-[600px] overflow-y-auto">
+              <div className="space-y-3 max-h-[480px] overflow-y-auto">
                 {recentJobs.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
                     No jobs posted yet.
@@ -2001,6 +2002,73 @@ export function PostJobSection() {
               </div>
             </CardContent>
           </Card>
+
+          {/* ── AI Scoring Guide ── */}
+          <Card className="border-border/90 bg-card/94 shadow-[0_18px_40px_rgba(15,23,42,0.06)] dark:bg-card/88">
+            <CardHeader className="pb-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">How It Works</p>
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <CardTitle className="text-foreground text-base">AI Scoring Guide</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Triplet scores each applicant automatically against the criteria you set. Here's what drives the score:
+              </p>
+              <div className="space-y-2.5">
+                {[
+                  {
+                    icon: GraduationCap,
+                    title: "Academic Eligibility",
+                    desc: "10th, 12th, and CGPA thresholds act as hard filters — candidates below them are excluded before ranking begins.",
+                    color: "text-blue-400",
+                    bg: "bg-blue-500/10",
+                  },
+                  {
+                    icon: Layers3,
+                    title: "Required Skills Match",
+                    desc: "Each skill you list is matched against the candidate's resume using semantic similarity, not just keyword search.",
+                    color: "text-violet-400",
+                    bg: "bg-violet-500/10",
+                  },
+                  {
+                    icon: Sparkles,
+                    title: "AI Bonus Points",
+                    desc: "Bonus criteria (skill in project, elite internship, project level, internship duration) boost the final score for standout candidates.",
+                    color: "text-primary",
+                    bg: "bg-primary/10",
+                  },
+                  {
+                    icon: Clock3,
+                    title: "Passout Year Range",
+                    desc: "Restricts applicants by graduation year. Leave both blank to accept candidates from any batch.",
+                    color: "text-amber-400",
+                    bg: "bg-amber-500/10",
+                  },
+                  {
+                    icon: Users2,
+                    title: "Gap & Backlog Rules",
+                    desc: "These are hard constraints. A candidate with a gap or active backlogs who falls outside your limits is automatically excluded.",
+                    color: "text-rose-400",
+                    bg: "bg-rose-500/10",
+                  },
+                ].map(({ icon: Icon, title, desc, color, bg }) => (
+                  <div key={title} className="flex gap-3 rounded-xl border border-border/50 bg-secondary/30 p-3 dark:bg-secondary/15">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg}`}>
+                      <Icon className={`h-4 w-4 ${color}`} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-foreground">{title}</p>
+                      <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          </div>{/* end right column */}
         </div>
       )}
 

@@ -16,6 +16,10 @@ from app.api.dependencies.auth import require_employer, get_rls_db
 from app.models.models import User, EmployerProfile, JobDescription, Application, Score, CandidateProfile, Notification, IntegrityLog, Resume
 from app.schemas.employer import EmployerProfileUpdate, EmployerProfileResponse
 from app.core.enums import AlertStatus
+from app.utils.notification_preferences import (
+    normalize_notification_preferences,
+    notification_visible_for_role,
+)
 
 router = APIRouter()
 
@@ -160,7 +164,11 @@ async def get_notifications(
         .order_by(Notification.created_at.desc())
         .limit(20)
     )
-    notifications = result.scalars().all()
+    preferences = normalize_notification_preferences(current_user.notification_preferences)
+    notifications = [
+        n for n in result.scalars().all()
+        if notification_visible_for_role(n.notification_type, preferences, "employer")
+    ]
 
     return [
         {

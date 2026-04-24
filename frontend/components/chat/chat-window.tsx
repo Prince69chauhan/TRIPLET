@@ -193,18 +193,25 @@ export function ChatWindow({
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <div>
-          <p className="text-base font-semibold tracking-[-0.01em] text-foreground">{otherPartyName}</p>
-          <p className="text-[13px] leading-5 text-muted-foreground">{jobTitle}</p>
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/50 bg-card/60 px-4 py-3 backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] bg-primary/10 text-primary ring-1 ring-primary/15">
+            <span className="text-[12.5px] font-bold">
+              {otherPartyName.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold tracking-[-0.02em] text-foreground">{otherPartyName}</p>
+            <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground">{jobTitle}</p>
+          </div>
         </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={onClose}
-          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+          className="h-8 w-8 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
         >
-          <X className="h-4 w-4" />
+          <X className="h-3.5 w-3.5" />
         </Button>
       </div>
 
@@ -230,14 +237,14 @@ export function ChatWindow({
         )}
         {!initialLoading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-secondary/70 ring-1 ring-border/60 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
-              <MessageCircle className="h-6 w-6 text-muted-foreground" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary/60 border border-border/40">
+              <MessageCircle className="h-5 w-5 text-muted-foreground" />
             </div>
-            <div className="space-y-1">
-              <p className="text-[15px] font-medium leading-6 text-foreground">
+            <div className="space-y-0.5">
+              <p className="text-[14px] font-medium leading-5 text-foreground">
                 No messages yet
               </p>
-              <p className="text-[13px] leading-5 text-muted-foreground">
+              <p className="text-[12px] leading-5 text-muted-foreground">
                 Say hello to {otherPartyName.split(" ")[0] || "them"} and start the conversation.
               </p>
             </div>
@@ -249,10 +256,10 @@ export function ChatWindow({
             className={`flex animate-in fade-in slide-in-from-bottom-1 duration-200 ${msg.is_mine ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`max-w-[78%] space-y-2 rounded-2xl px-4 py-3 transition-shadow duration-200 hover:shadow-[0_14px_28px_rgba(15,23,42,0.16)] ${
+              className={`max-w-[76%] space-y-1.5 rounded-[18px] px-3.5 py-2.5 ${
                 msg.is_mine
-                  ? "rounded-br-sm bg-gradient-to-br from-primary to-primary/92 text-primary-foreground shadow-[0_10px_24px_rgba(15,23,42,0.14)] ring-1 ring-primary/20"
-                  : "rounded-bl-sm border border-border/70 bg-secondary/78 text-foreground shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+                  ? "rounded-br-[5px] bg-primary text-primary-foreground shadow-[0_2px_14px_color-mix(in_oklch,var(--primary)_28%,transparent)]"
+                  : "rounded-bl-[5px] border border-border/50 bg-secondary/70 text-foreground"
               }`}
             >
               {msg.attachment_url && (
@@ -260,16 +267,20 @@ export function ChatWindow({
                   href={msg.attachment_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-[13px] font-medium underline underline-offset-2 opacity-85 hover:opacity-100"
+                  className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[12.5px] font-medium transition-colors ${
+                    msg.is_mine
+                      ? "bg-white/10 hover:bg-white/15"
+                      : "bg-background/50 hover:bg-background/80"
+                  }`}
                 >
                   <Paperclip className="h-3 w-3 shrink-0" />
-                  {msg.attachment_name || "Attachment"}
+                  <span className="truncate">{msg.attachment_name || "Attachment"}</span>
                 </a>
               )}
-              <p className="break-words text-[15px] leading-7">{msg.content}</p>
+              <p className="whitespace-pre-wrap break-normal text-[14.5px] leading-[1.55]">{msg.content}</p>
               <div
-                className={`flex items-center gap-1.5 text-[11px] font-medium tabular-nums ${
-                  msg.is_mine ? "justify-end text-primary-foreground/75" : "text-muted-foreground"
+                className={`flex items-center gap-1.5 text-[10.5px] font-medium tabular-nums ${
+                  msg.is_mine ? "justify-end text-primary-foreground/80" : "text-muted-foreground"
                 }`}
               >
                 <span>{fmtTime(msg.created_at)}</span>
@@ -286,7 +297,7 @@ export function ChatWindow({
       </div>
 
       {/* Input bar */}
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-border shrink-0">
+      <div className="flex shrink-0 items-center gap-2 border-t border-border/50 bg-card/40 px-3 py-2.5 backdrop-blur-xl">
         <input
           ref={fileRef}
           type="file"
@@ -301,7 +312,7 @@ export function ChatWindow({
           variant="ghost"
           size="sm"
           onClick={() => fileRef.current?.click()}
-          className="h-9 w-9 p-0 shrink-0 text-muted-foreground hover:text-foreground"
+          className="h-9 w-9 shrink-0 rounded-full p-0 text-muted-foreground hover:bg-secondary hover:text-foreground"
           title="Attach file"
         >
           <Paperclip className="h-4 w-4" />
@@ -316,13 +327,13 @@ export function ChatWindow({
             }
           }}
           placeholder="Type a message..."
-          className="flex-1 border-border bg-input text-[15px] text-foreground"
+          className="h-9 flex-1 rounded-full border-border/60 bg-secondary/50 px-4 text-[13.5px] text-foreground placeholder:text-muted-foreground/70"
         />
         <Button
           onClick={handleSend}
           disabled={!input.trim() || sending}
           size="sm"
-          className="h-9 w-9 p-0 shrink-0"
+          className="h-9 w-9 shrink-0 rounded-full p-0 shadow-[0_2px_12px_color-mix(in_oklch,var(--primary)_26%,transparent)]"
           title="Send"
         >
           {sending

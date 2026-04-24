@@ -30,6 +30,7 @@ class User(Base):
     role            : Mapped[UserRole]         = mapped_column(SAEnum(UserRole, name="user_role"), nullable=False)
     is_active       : Mapped[bool]             = mapped_column(Boolean, default=True)
     is_verified     : Mapped[bool]             = mapped_column(Boolean, default=False)
+    notification_preferences : Mapped[dict]    = mapped_column(JSONB, default=dict)
     created_at      : Mapped[datetime]         = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
     updated_at      : Mapped[datetime]         = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)
 

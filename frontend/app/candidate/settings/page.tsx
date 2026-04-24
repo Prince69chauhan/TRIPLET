@@ -1,26 +1,47 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { FloatingBackButton } from "@/components/ui/floating-back-button"
-import { profileService } from "@/lib/profileService"
+import { profileService, type NotificationPreferences } from "@/lib/profileService"
 import { clearAuthSession } from "@/lib/browser-session"
 import { useTheme } from "@/hooks/useTheme"
 import { useRoleGuard } from "@/hooks/use-role-guard"
 import {
   Moon, Sun, Lock,
-  Trash2, AlertCircle, CheckCircle2, Loader2, Shield
+  Trash2, AlertCircle, CheckCircle2, Loader2, Shield, AlertTriangle,
+  Bell, MessageSquare, Mail, Briefcase, type LucideIcon,
 } from "lucide-react"
+
+const defaultNotificationPreferences: NotificationPreferences = {
+  in_app_enabled: true,
+  message_notifications: true,
+  application_updates: true,
+  email_message_digest: true,
+  email_application_updates: true,
+  security_alerts: true,
+}
 
 export default function CandidateSettingsPage() {
   const router = useRouter()
   const pathname = usePathname()
   const expectedRole = pathname.startsWith("/hr") ? "employer" : "candidate"
+  const isEmployer = expectedRole === "employer"
   const { authorized, checking } = useRoleGuard(expectedRole)
   const { theme, toggleTheme } = useTheme()
 
@@ -30,9 +51,45 @@ export default function CandidateSettingsPage() {
   const [pwLoading, setPwLoading]   = useState(false)
   const [pwSuccess, setPwSuccess]   = useState("")
   const [pwError, setPwError]       = useState("")
-  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [deleteAcknowledged, setDeleteAcknowledged] = useState(false)
   const [deleting, setDeleting]     = useState(false)
   const [deleteError, setDeleteError] = useState("")
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(defaultNotificationPreferences)
+  const [notificationLoading, setNotificationLoading] = useState(true)
+  const [notificationSavingKey, setNotificationSavingKey] = useState<keyof NotificationPreferences | null>(null)
+  const [notificationError, setNotificationError] = useState("")
+  const [notificationSuccess, setNotificationSuccess] = useState("")
+
+  useEffect(() => {
+    if (!authorized) return
+    let active = true
+
+    const loadNotificationSettings = async () => {
+      setNotificationLoading(true)
+      setNotificationError("")
+      try {
+        const data = await profileService.getNotificationSettings()
+        if (active) {
+          setNotificationPreferences({ ...defaultNotificationPreferences, ...data })
+        }
+      } catch {
+        if (active) {
+          setNotificationError("Could not load notification settings.")
+        }
+      } finally {
+        if (active) {
+          setNotificationLoading(false)
+        }
+      }
+    }
+
+    void loadNotificationSettings()
+    return () => {
+      active = false
+    }
+  }, [authorized])
 
   const handleChangePassword = async () => {
     setPwError(""); setPwSuccess("")
@@ -65,9 +122,94 @@ export default function CandidateSettingsPage() {
       router.replace("/")
     } catch (e: any) {
       setDeleteError(e?.response?.data?.detail || "Failed to delete account. Please try again.")
-    } finally {
       setDeleting(false)
     }
+  }
+
+  const resetDeleteDialog = () => {
+    setDeleteDialogOpen(false)
+    setDeleteConfirmText("")
+    setDeleteAcknowledged(false)
+    setDeleteError("")
+  }
+
+  const confirmPhrase = "DELETE"
+  const canConfirmDelete = deleteAcknowledged && deleteConfirmText.trim() === confirmPhrase
+
+  const updateNotificationPreference = async (key: keyof NotificationPreferences, value: boolean) => {
+    if (isEmployer && key === "security_alerts" && !value) return
+
+    const previous = notificationPreferences
+    const next = { ...previous, [key]: value }
+    setNotificationPreferences(next)
+    setNotificationSavingKey(key)
+    setNotificationError("")
+    setNotificationSuccess("")
+
+    try {
+      const saved = await profileService.updateNotificationSettings({ [key]: value })
+      setNotificationPreferences({ ...defaultNotificationPreferences, ...saved })
+      setNotificationSuccess("Notification settings saved.")
+      window.setTimeout(() => setNotificationSuccess(""), 2500)
+    } catch {
+      setNotificationPreferences(previous)
+      setNotificationError("Failed to save notification settings.")
+    } finally {
+      setNotificationSavingKey(null)
+    }
+  }
+
+  const notificationRows: Array<{
+    key: keyof NotificationPreferences
+    title: string
+    description: string
+    icon: LucideIcon
+    disabled?: boolean
+  }> = [
+    {
+      key: "in_app_enabled",
+      title: "In-app notification center",
+      description: "Show alerts in the dashboard bell.",
+      icon: Bell,
+    },
+    {
+      key: "message_notifications",
+      title: "Chat message alerts",
+      description: "Show unread HR/candidate messages in the bell.",
+      icon: MessageSquare,
+    },
+    {
+      key: "email_message_digest",
+      title: "Unread message email digest",
+      description: "Send one email only when unread chats stay pending.",
+      icon: Mail,
+    },
+    {
+      key: "application_updates",
+      title: isEmployer ? "Hiring activity updates" : "Application updates",
+      description: isEmployer
+        ? "Keep hiring and workflow updates visible in your workspace."
+        : "Show application received, selected, and rejection updates.",
+      icon: Briefcase,
+    },
+    {
+      key: "email_application_updates",
+      title: "Application update emails",
+      description: isEmployer
+        ? "Allow hiring workflow emails where applicable."
+        : "Receive important application results by email.",
+      icon: Mail,
+    },
+  ]
+
+  if (isEmployer) {
+    notificationRows.push({
+      key: "security_alerts",
+      title: "Resume security alerts",
+      description: "Tamper alerts stay enabled for hiring safety.",
+      icon: Shield,
+      disabled: true,
+    })
   }
 
   if (checking || !authorized) {
@@ -120,6 +262,58 @@ export default function CandidateSettingsPage() {
                 </div>
               </div>
               <Switch checked={theme === "dark"} onCheckedChange={toggleTheme} />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Notifications */}
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2 text-base">
+              <Bell className="h-4 w-4 text-primary" /> Notifications
+            </CardTitle>
+            <CardDescription>Control dashboard alerts and email reminders</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {notificationError && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 text-red-500 text-sm">
+                <AlertCircle className="h-4 w-4" /> {notificationError}
+              </div>
+            )}
+            {notificationSuccess && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 text-green-500 text-sm">
+                <CheckCircle2 className="h-4 w-4" /> {notificationSuccess}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {notificationRows.map(({ key, title, description, icon: Icon, disabled }) => {
+                const saving = notificationSavingKey === key
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-secondary/20 p-4"
+                  >
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">{title}</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {saving && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
+                      <Switch
+                        checked={disabled ? true : Boolean(notificationPreferences[key])}
+                        disabled={notificationLoading || saving || disabled}
+                        onCheckedChange={(checked) => updateNotificationPreference(key, checked)}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </CardContent>
         </Card>
@@ -198,25 +392,100 @@ export default function CandidateSettingsPage() {
                   Permanently deletes your account, resume, and all data. Cannot be undone.
                 </p>
               </div>
-              {!deleteConfirm ? (
-                <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(true)}
-                  className="border-red-500/40 text-red-500 hover:bg-red-500/10 shrink-0">
-                  Delete Account
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setDeleteConfirm(false)}
-                    className="border-border text-muted-foreground">Cancel</Button>
-                  <Button size="sm" onClick={handleDeleteAccount} disabled={deleting}
-                    className="bg-red-500 text-white hover:bg-red-600">
-                    {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm Delete"}
-                  </Button>
-                </div>
-              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteDialogOpen(true)}
+                className="border-red-500/40 text-red-500 hover:bg-red-500/10 shrink-0"
+              >
+                Delete Account
+              </Button>
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleting) return
+          if (!open) resetDeleteDialog()
+          else setDeleteDialogOpen(true)
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+            </div>
+            <AlertDialogTitle className="text-center text-foreground">
+              Delete your account?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center text-muted-foreground">
+              This action is <span className="font-semibold text-red-500">permanent</span> and cannot be undone.
+              Your profile, resume, messages, and all associated data will be deleted immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2 py-2">
+            <label className="flex items-start gap-3 rounded-lg border border-red-500/15 bg-red-500/5 px-3 py-2.5">
+              <input
+                type="checkbox"
+                checked={deleteAcknowledged}
+                onChange={(e) => setDeleteAcknowledged(e.target.checked)}
+                disabled={deleting}
+                className="mt-0.5 h-4 w-4 rounded border-border accent-red-500"
+              />
+              <span className="text-sm text-foreground">
+                I understand that deleting this account is permanent and cannot be undone.
+              </span>
+            </label>
+            <Label htmlFor="deleteConfirm" className="text-sm text-foreground">
+              Type <span className="font-mono font-semibold text-red-500">{confirmPhrase}</span> to confirm
+            </Label>
+            <Input
+              id="deleteConfirm"
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder={confirmPhrase}
+              disabled={deleting}
+              autoComplete="off"
+              className="bg-input border-border text-foreground"
+            />
+          </div>
+
+          {deleteError && (
+            <div className="flex items-center gap-2 rounded-lg bg-red-500/10 p-3 text-sm text-red-500">
+              <AlertCircle className="h-4 w-4 shrink-0" /> {deleteError}
+            </div>
+          )}
+
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel
+              disabled={deleting}
+              onClick={resetDeleteDialog}
+              className="mt-0"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault()
+                if (canConfirmDelete && !deleting) handleDeleteAccount()
+              }}
+              disabled={!canConfirmDelete || deleting}
+              className="bg-red-500 text-white hover:bg-red-600 focus-visible:ring-red-500 disabled:opacity-50"
+            >
+              {deleting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : (
+                <><Trash2 className="mr-2 h-4 w-4" /> Delete Account</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

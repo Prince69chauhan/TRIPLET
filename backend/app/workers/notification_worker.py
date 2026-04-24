@@ -58,6 +58,7 @@ def _flush_standard_notifications(db) -> tuple[int, int]:
     from app.models.models import Notification
     from app.core.enums import AlertStatus
     from app.services.notification.email import send_email_sync
+    from app.utils.notification_preferences import notification_email_allowed
 
     pending = (
         db.query(Notification)
@@ -80,6 +81,13 @@ def _flush_standard_notifications(db) -> tuple[int, int]:
     for notification in pending:
         notification.last_attempted_at = datetime.utcnow()
         to_email = _get_recipient_email(db, notification)
+        preferences = _get_recipient_preferences(db, notification)
+
+        if not notification_email_allowed(notification.notification_type, preferences):
+            notification.status = AlertStatus.sent
+            notification.sent_at = datetime.utcnow()
+            db.commit()
+            continue
 
         if not to_email:
             notification.retry_count += 1
@@ -228,6 +236,7 @@ def _fetch_unread_message_rows(db, recipient_role: str):
             JOIN employer_profiles ep ON ep.user_id = c.hr_user_id
             WHERE m.sender_role = 'hr'
             AND m.is_read = FALSE
+            AND COALESCE((cu.notification_preferences ->> 'email_message_digest')::boolean, TRUE) = TRUE
             ORDER BY m.created_at ASC
         """)
     else:
@@ -249,6 +258,7 @@ def _fetch_unread_message_rows(db, recipient_role: str):
             JOIN candidate_profiles cp ON cp.user_id = c.candidate_user_id
             WHERE m.sender_role = 'candidate'
             AND m.is_read = FALSE
+            AND COALESCE((eu.notification_preferences ->> 'email_message_digest')::boolean, TRUE) = TRUE
             ORDER BY m.created_at ASC
         """)
 
@@ -371,6 +381,22 @@ def _get_recipient_email(db, notification) -> str:
     Resolves the recipient email from employer or candidate profile.
     """
     from app.models.models import EmployerProfile, CandidateProfile, User
+    from app.utils.notification_preferences import APPLICATION_NOTIFICATION_TYPES
+
+    prefer_candidate = (
+        notification.notification_type in APPLICATION_NOTIFICATION_TYPES
+        and notification.candidate_id
+    )
+
+    if notification.candidate_id and prefer_candidate:
+        profile = db.query(CandidateProfile).filter(
+            CandidateProfile.id == notification.candidate_id
+        ).first()
+        if profile:
+            user = db.query(User).filter(
+                User.id == profile.user_id
+            ).first()
+            return user.email if user else None
 
     if notification.employer_id:
         profile = db.query(EmployerProfile).filter(
@@ -393,3 +419,40 @@ def _get_recipient_email(db, notification) -> str:
             return user.email if user else None
 
     return None
+
+
+def _get_recipient_preferences(db, notification) -> dict:
+    from app.models.models import EmployerProfile, CandidateProfile, User
+    from app.utils.notification_preferences import (
+        APPLICATION_NOTIFICATION_TYPES,
+        normalize_notification_preferences,
+    )
+
+    user = None
+    prefer_candidate = (
+        notification.notification_type in APPLICATION_NOTIFICATION_TYPES
+        and notification.candidate_id
+    )
+
+    if notification.candidate_id and prefer_candidate:
+        profile = db.query(CandidateProfile).filter(
+            CandidateProfile.id == notification.candidate_id
+        ).first()
+        if profile:
+            user = db.query(User).filter(User.id == profile.user_id).first()
+    elif notification.employer_id:
+        profile = db.query(EmployerProfile).filter(
+            EmployerProfile.id == notification.employer_id
+        ).first()
+        if profile:
+            user = db.query(User).filter(User.id == profile.user_id).first()
+    elif notification.candidate_id:
+        profile = db.query(CandidateProfile).filter(
+            CandidateProfile.id == notification.candidate_id
+        ).first()
+        if profile:
+            user = db.query(User).filter(User.id == profile.user_id).first()
+
+    return normalize_notification_preferences(
+        user.notification_preferences if user else None
+    )

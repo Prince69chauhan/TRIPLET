@@ -46,6 +46,11 @@ _INDEX_CONV_APP = (
     "CREATE INDEX IF NOT EXISTS idx_conv_app ON conversations (application_id)"
 )
 
+_USER_NOTIFICATION_PREFS_DDL = """
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS notification_preferences JSONB NOT NULL DEFAULT '{}'::jsonb
+"""
+
 
 async def ensure_messaging_schema() -> None:
     """Run each DDL statement once; safe to call on every boot."""
@@ -54,3 +59,4 @@ async def ensure_messaging_schema() -> None:
         await conn.execute(text(_MESSAGES_DDL))
         await conn.execute(text(_INDEX_MSG_CONV))
         await conn.execute(text(_INDEX_CONV_APP))
+        await conn.execute(text(_USER_NOTIFICATION_PREFS_DDL))

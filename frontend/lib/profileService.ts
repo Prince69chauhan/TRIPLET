@@ -2,6 +2,15 @@ import api from "./api"
 
 type Role = "candidate" | "employer"
 
+export type NotificationPreferences = {
+  in_app_enabled: boolean
+  message_notifications: boolean
+  application_updates: boolean
+  email_message_digest: boolean
+  email_application_updates: boolean
+  security_alerts: boolean
+}
+
 export type ProfileData = {
   full_name?: string
   phone?: string
@@ -26,6 +35,7 @@ export type ProfileMeResponse = {
   role: Role
   is_verified: boolean
   created_at: string
+  notification_preferences: NotificationPreferences
   profile?: ProfileData
 }
 
@@ -67,6 +77,14 @@ export const profileService = {
       current_password: currentPassword,
       new_password    : newPassword,
     })
+  },
+
+  async getNotificationSettings() {
+    return api.get<NotificationPreferences>("/api/profile/notification-settings")
+  },
+
+  async updateNotificationSettings(data: Partial<NotificationPreferences>) {
+    return api.put<NotificationPreferences>("/api/profile/notification-settings", data)
   },
 
   async resetResume() {

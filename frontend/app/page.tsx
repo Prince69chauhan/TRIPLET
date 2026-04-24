@@ -4,10 +4,12 @@ import { useState, useEffect } from "react"
 import { authService } from "@/lib/authService"
 import { candidateService } from "@/lib/candidateService"
 import { removeSessionValue } from "@/lib/browser-session"
+import { applyTheme, resolveStoredTheme } from "@/lib/theme"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -17,7 +19,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Briefcase, Users, Sparkles, ArrowRight, Eye, EyeOff, UserPlus, CheckCircle2 } from "lucide-react"
+import {
+  AlertCircle,
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  CheckCircle2,
+  Clock3,
+  Eye,
+  EyeOff,
+  Loader2,
+  Mail,
+  Moon,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Sun,
+  UserPlus,
+  Users,
+} from "lucide-react"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -30,6 +50,7 @@ export default function LoginPage() {
   const [signupRole, setSignupRole] = useState<"candidate" | "hr">("candidate")
   const [signupSuccess, setSignupSuccess] = useState(false)
   const [error, setError] = useState("")
+  const [theme, setTheme] = useState<"dark" | "light">("dark")
 
   // OTP login state
   const [otpStep, setOtpStep] = useState(false)
@@ -137,6 +158,27 @@ export default function LoginPage() {
     return () => clearInterval(t)
   }, [countdown])
 
+  useEffect(() => {
+    const resolved = resolveStoredTheme("/", (key) => {
+      try {
+        return localStorage.getItem(key)
+      } catch {
+        return null
+      }
+    })
+    setTheme(resolved)
+    applyTheme(resolved)
+  }, [])
+
+  const toggleLoginTheme = () => {
+    const next = theme === "dark" ? "light" : "dark"
+    setTheme(next)
+    try {
+      localStorage.setItem("triplet_theme", next)
+    } catch {}
+    applyTheme(next)
+  }
+
   const handleSignup = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
@@ -181,8 +223,23 @@ export default function LoginPage() {
     setSignupSuccess(false)
   }
 
+  const safeCountdown = Math.max(countdown, 0)
+  const formattedCountdown = `${Math.floor(safeCountdown / 60)}:${String(safeCountdown % 60).padStart(2, "0")}`
+
   return (
     <div className="min-h-screen bg-background xl:grid xl:grid-cols-[1.08fr_0.92fr]">
+      <Button
+        type="button"
+        variant="outline"
+        size="icon"
+        onClick={toggleLoginTheme}
+        className="fixed right-4 top-4 z-40 h-10 w-10 rounded-xl border-border/80 bg-card/90 text-muted-foreground shadow-sm backdrop-blur-md hover:text-foreground"
+        aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+      >
+        {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      </Button>
+
       {/* Left Panel - Branding */}
       <div className="relative hidden overflow-hidden border-r border-border/80 bg-card/78 backdrop-blur-sm xl:flex">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(15,185,129,0.12),transparent_34%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_30%),linear-gradient(180deg,rgba(255,255,255,0.4),rgba(236,243,249,0.72))] dark:bg-[linear-gradient(180deg,rgba(20,28,35,0.2),rgba(20,28,35,0.7))]" />
@@ -375,6 +432,113 @@ export default function LoginPage() {
 
       {/* OTP Verification Screen */}
       {otpStep && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/20 p-4 backdrop-blur-md dark:bg-black/60">
+          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(16,185,129,0.10),transparent_34%),linear-gradient(315deg,rgba(59,130,246,0.09),transparent_36%)]" />
+          <Card className="relative w-full max-w-[460px] overflow-hidden border-border/80 bg-card/96 shadow-[0_24px_70px_rgba(15,23,42,0.18)] backdrop-blur-xl dark:bg-card/95 dark:shadow-[0_32px_80px_rgba(0,0,0,0.55)]">
+            <div className="h-1 w-full bg-gradient-to-r from-primary via-cyan-500 to-emerald-500" />
+            <CardHeader className="items-center justify-items-center px-6 pb-4 pt-8 text-center">
+              <div className="mb-3 grid h-14 w-14 place-items-center rounded-2xl border border-primary/15 bg-primary/10 text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]">
+                <ShieldCheck className="block h-7 w-7" strokeWidth={1.9} />
+              </div>
+              <CardTitle className="text-2xl font-bold tracking-[-0.03em] text-foreground">
+                Verify your identity
+              </CardTitle>
+              <CardDescription className="max-w-sm text-sm leading-relaxed">
+                Enter the 6-digit verification code sent to your email.
+              </CardDescription>
+              <div className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full border border-border/80 bg-secondary/70 px-3 py-1.5 text-xs font-semibold text-foreground">
+                <Mail className="h-3.5 w-3.5 shrink-0 text-primary" />
+                <span className="min-w-0 truncate">{otpEmail}</span>
+              </div>
+            </CardHeader>
+
+            <CardContent className="space-y-5 px-6 pb-7">
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otpValue}
+                  onChange={(value) => setOtpValue(value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") handleOtpSubmit()
+                  }}
+                  containerClassName="justify-center gap-2"
+                >
+                  <InputOTPGroup className="gap-2">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="h-12 w-11 rounded-xl border border-border/90 bg-input text-lg font-bold text-foreground shadow-sm data-[active=true]:border-primary data-[active=true]:ring-primary/20 sm:h-13 sm:w-12"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              <div className="flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-secondary/45 px-3 py-2 text-xs font-medium text-muted-foreground">
+                <Clock3 className="h-3.5 w-3.5 text-primary" />
+                {countdown > 0 ? (
+                  <span>Code expires in <span className="font-semibold text-foreground">{formattedCountdown}</span></span>
+                ) : (
+                  <span className="font-semibold text-red-500">Code expired</span>
+                )}
+              </div>
+
+              {otpError && (
+                <div className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-500">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{otpError}</span>
+                </div>
+              )}
+
+              <Button
+                onClick={handleOtpSubmit}
+                disabled={otpLoading || otpValue.length !== 6}
+                className="h-11 w-full"
+              >
+                {otpLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Verifying
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    Verify and sign in
+                  </>
+                )}
+              </Button>
+
+              <div className="flex items-center justify-between gap-3 border-t border-border/70 pt-4 text-sm">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => { setOtpStep(false); setOtpValue(""); setOtpError("") }}
+                  className="px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleResendOtp}
+                  disabled={countdown > 540}
+                  className="px-2 text-primary hover:text-primary"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Resend OTP
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Legacy OTP Verification Screen */}
+      {false && otpStep && (
         <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="bg-card border-border w-full max-w-md">
             <CardHeader>
